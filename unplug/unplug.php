@@ -319,21 +319,20 @@ class Router {
 // the url and running a query based on it.
 function prevent_parse_request () {
 
-    $allowed = ! is_admin() || (defined('DOING_AJAX') && DOING_AJAX);
-    $allowed and add_action('do_parse_request', function ($do_parse, $wp) {
+    // if the path starts with admin or login,
+    // which are two convenient wordpress redirects, we don't
+    // want to prevent the parsing, either. Same goes for paths
+    // starting with wp-content so a '*'-route won't falsely
+    // catch uploads or static theme assets.
+    $path = parse_url(get_current_url(), PHP_URL_PATH);
+    $allowed = !preg_match('/^(admin|login|wp-content)/', $path);
+    $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
 
-        // one more check: if the path starts with admin or login,
-        // which are two convenient wordpress redirects, we don't
-        // want to prevent the parsing, either. Same goes for paths
-        // starting with wp-content so a '*'-route won't falsely
-        // catch uploads or static theme assets.
-        $path = parse_url(get_current_url(), PHP_URL_PATH);
-        if (preg_match('/^(admin|login|wp-content)/', $path)) {
-            return $do_parse;
-        }
-
-        $wp->query_vars = [];
-        remove_action('template_redirect', 'redirect_canonical');
-        return FALSE;
-    }, 30, 2);
+    if ($allowed) {
+        add_action('do_parse_request', function ($do_parse, $wp) {
+            $wp->query_vars = [];
+            remove_action('template_redirect', 'redirect_canonical');
+            return FALSE;
+        }, 30, 2);
+    }
 }
