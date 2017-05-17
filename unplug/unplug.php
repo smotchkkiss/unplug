@@ -255,13 +255,13 @@ class Router {
     public function __construct () {
 
         $current_url = get_current_url();
-        $urlParts = explode('?', $current_url, 2);
+        $url_parts = explode('?', $current_url, 2);
 
-        $urlPath = self::split_path($urlParts[0]);
+        $url_path = self::split_path($url_parts[0]);
 
-        $urlVars = [];
-        if (isset($urlParts[1])) {
-            parse_str($urlParts[1], $urlVars);
+        $url_vars = [];
+        if (isset($url_parts[1])) {
+            parse_str($url_parts[1], $url_vars);
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -270,8 +270,8 @@ class Router {
             $requestMethod = 'get';
         }
 
-        $this->path = $urlPath;
-        $this->query = $urlVars;
+        $this->path = $url_path;
+        $this->query = $url_pars;
     }
 
     /**
