@@ -265,9 +265,9 @@ class Router {
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $requestMethod = 'post';
+            $this->method = 'post';
         } else {
-            $requestMethod = 'get';
+            $this->method = 'get';
         }
 
         $this->path = $url_path;
