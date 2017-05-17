@@ -324,9 +324,11 @@ function prevent_parse_request () {
 
         // one more check: if the path starts with admin or login,
         // which are two convenient wordpress redirects, we don't
-        // want to prevent the parsing either.
+        // want to prevent the parsing, either. Same goes for paths
+        // starting with wp-content so a '*'-route won't falsely
+        // catch uploads or static theme assets.
         $path = parse_url(get_current_url(), PHP_URL_PATH);
-        if (preg_match('/^(admin|login)/', $path)) {
+        if (preg_match('/^(admin|login|wp-content)/', $path)) {
             return $do_parse;
         }
 
