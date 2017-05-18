@@ -7,16 +7,27 @@ Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
 
+// TODO
+// - Add cache invalidation mechanism (on save post)
+// - Make it so that the caching only needs to be switched
+//   on in one place, so if we need to register the
+//   invalidation mechanism from functions.php, then
+//   caching=true and cache_dir shouldn't be parameters
+//   on the Router constructor
+// - Add an option to switch off caching for individual routes
+
 namespace unplug;
 
 class Route {
 
     public $path;
     public $callback;
+    public $do_cache;
 
-    public function __construct (array $path, callable $callback) {
+    public function __construct (array $path, callable $callback, $do_cache) {
         $this->path = $path;
         $this->callback = $callback;
+        $this->do_cache = $do_cache;
     }
 
     // make the callback fn directly callable
@@ -41,8 +52,8 @@ class Request {
 class Response {
 
     protected $status;
-    protected $is_json;
     protected $body;
+    public $is_json;
 
     public function status ($status = null) {
 
@@ -123,6 +134,282 @@ class Response {
     }
 }
 
+class Cache {
+
+    /**
+     * @throws if the sha256 hash algorithm is not available
+     */
+    private static function assert_sha256_available () {
+
+        if (!in_array('sha256', hash_algos(), true)) {
+            throw new \Exception('SHA256 is not available');
+        }
+    }
+
+    /**
+     * Strip the last directory from a path if it
+     * isn't already the root directory
+     *
+     * @param string $dir
+     * @returns string
+     */
+    private static function one_dir_up ($dir) {
+
+        $segments = explode('/', $dir);
+        $segments = array_filter($segments, function ($str) {
+            return $str !== '';
+        });
+        $length = sizeof($segments);
+        $segments = array_slice($segments, 0, $length - 1);
+        $newdir = '/' . join('/', $segments);
+        return $newdir;
+    }
+
+    /**
+    * Expects $rewrite_base to be a string like '/'
+    * and $rules to be an array of associative arrays
+    * like ['path': $path, 'query': $query, 'file': $file],
+    * where path is the path to match, without the leading slash
+    * (at least if that one's already in the $rewrite_base),
+    * $query is the query string to match, without the leading questionmark,
+    * and $file is the relative path to the file in the cache directory
+    * that we want delivered.
+    *
+    * @param string $rewrite_base
+    * @param array $rules
+    */
+    private static function generate_htaccess_section ($rewrite_base) {
+
+        $directives = [];
+        $directives[] = '# BEGIN Unplug';
+        $directives[] = '<IfModule mod_rewrite.c>';
+        $directives[] = 'RewriteEngine On';
+        $directives[] = $rewrite_base;
+
+        $directives[] = '# BEGIN Unplug rules';
+
+        // Actual rules will go in between here
+
+        $directives[] = '# END Unplug rules';
+
+        $directives[] = '</IfModule>';
+        $directives[] = '# END Unplug';
+
+        // finish with an empty line for good taste
+        $directives[] = '';
+
+        return $directives;
+    }
+
+    /**
+     * Create a rule (= array of 2 lines for .htaccess)
+     *
+     * @param string $path
+     * @param string $file
+     * @param string $query
+     * @returns array
+     */
+    private static function create_rule ($path, $query, $file) {
+        $rule = [];
+        $rule[] = 'RewriteCond %{QUERY_STRING} ^' . preg_quote($query) . '$';
+        $rule[] = 'RewriteRule ^' . preg_quote($path) . '$ ' . $file . '? [L]';
+        return $rule;
+    }
+
+    private $dir;
+    private $htaccess;
+    private $htaccess_path;
+
+    /**
+     * @param string $dir
+     */
+    public function __construct ($dir) {
+
+        $this->dir = $dir;
+        self::assert_sha256_available();
+        $this->find_htaccess_path();
+        $this->read_htaccess();
+        $this->extract_rewrite_base();
+    }
+
+    /**
+     * Public interface: cache a new response
+     */
+    public function add ($path, $query, $response, $extension) {
+
+        $path = $this->prepare_path($path);
+
+        $file = $this->save($path, $query, $response, $extension);
+
+        $rule = self::create_rule($path, $query, $file);
+        $this->insert_rule($rule);
+
+        $this->write_htaccess();
+    }
+
+    /**
+     * Read the .htaccess file from the disk (if any)
+     * and splits it into an array of lines.
+     *
+     * @throws if .htaccess isn't readable
+     */
+    private function read_htaccess () {
+
+        $htaccess_str = file_get_contents($this->htaccess_path);
+
+        if ($htaccess_str === false) {
+            throw new \Exception('Could not read ' . $this->htaccess_path);
+        }
+
+        $this->htaccess = explode("\n", $htaccess_str);
+    }
+
+    /**
+     * Serialise the htaccess array and attempts
+     * to write it back to disk
+     *
+     * @throws if writing fails
+     */
+    private function write_htaccess () {
+
+        $htaccess_str = join("\n", $this->htaccess);
+
+        $success = file_put_contents($this->htaccess_path, $htaccess_str);
+
+        if ($success === false) {
+            throw new \Exception('Could not write ' . $this->htaccess_path);
+        }
+    }
+
+    /**
+     * Extract the first RewriteBase line from a .htaccess
+     * or set $this->rewrite_base to a default 'RewriteBase /'
+     */
+    private function extract_rewrite_base () {
+
+        $lines = array_filter($this->htaccess, function ($line) {
+            return substr($line, 0, 12) === 'RewriteBase ';
+        });
+
+        // reset indices
+        $lines = array_values($lines);
+
+        if (sizeof($lines) > 0) {
+            $this->rewrite_base = $lines[0];
+        } else {
+            $this->rewrite_base = 'RewriteBase /';
+        }
+    }
+
+    /**
+     * Insert a given rule into our .htaccess
+     *
+     * @param array $rule
+     */
+    private function insert_rule (array $rule) {
+
+        // true means strict comparison (no type coercion)
+        $index = array_search('# END Unplug rules', $this->htaccess, true);
+
+        // if there is no Unplug section in the .htaccess file,
+        // we insert one and search again
+        if ($index === false) {
+
+            // generate the Unplug section
+            $unplug_htaccess_section =
+                self::generate_htaccess_section($this->rewrite_base);
+
+            // and insert it in front of everything else
+            // into our .htaccess
+            $this->htaccess =
+                array_merge($unplug_htaccess_section, $this->htaccess);
+
+            // update the index--this can't be false again,
+            // since we just inserted a '# END Unplug rules' line
+            $index = array_search('# END Unplug rules', $this->htaccess, true);
+        }
+
+        // insert into $this->htaccess, beginning from $index,
+        // and replacing 0 of the existing items (= just pushing
+        // them to the back of the array), the items in $rules
+        array_splice($this->htaccess, $index, 0, $rule);
+    }
+
+    /**
+     * Save the $response to a file and return
+     * the full path to the file
+     *
+     * @param string $path
+     * @param string $query
+     * @param string $response
+     * @returns string
+     * @throws if file not writable
+     */
+    private function save ($path, $query, $response, $extension) {
+
+        // TODO delete this debug line
+        $response = "THIS IS CACHED VERSION!!!\n\n" . $response;
+
+        if (!file_exists($this->dir)) {
+            mkdir($this->dir, 0755);
+        }
+
+        // is it ridiculous to add the questionmark?
+        $hash = hash('sha256', $path . '?' . $query);
+
+        $file = $this->dir . '/' . $hash . '.' . $extension;
+
+        $success = file_put_contents($file, $response);
+
+        if ($success === false) {
+            throw new \Exception('Failed to write ' . $file);
+        }
+
+        return $file;
+    }
+
+    /**
+     * Find the path to your nearest .htaccess file
+     * in the directory of this file or one above it
+     */
+    private function find_htaccess_path () {
+
+        $htaccess = '/.htaccess';
+        $dir = __DIR__;
+
+        while (!file_exists($dir . $htaccess) && $dir !== '/') {
+            $dir = self::one_dir_up($dir);
+        }
+
+        $path = $dir . $htaccess;
+
+        if (!file_exists($path)) {
+            throw new \Exception('No .htaccess found!');
+        }
+
+        $this->htaccess_path = $path;
+    }
+
+    /**
+     * Strip a leading slash from $path if $this->rewrite_base
+     * ends with a slash.
+     *
+     * @param string $path
+     * @returns string
+     */
+    private function prepare_path ($path) {
+
+        $rb_length = strlen($this->rewrite_base);
+        $p_length = strlen($path);
+        $rb_last_char = $rb_length ? $this->rewrite_base[$rb_length - 1] : '';
+        $p_first_char = $p_length ? $path[0] : '';
+        if ($rb_last_char === '/' && $p_first_char === '/') {
+            $path = substr($path, 1);
+        }
+        return $path;
+    }
+}
+
 /**
  * Gets the current url, but without protocol/host
  * By Giuseppe Mazzapica @gmazzap as published on
@@ -169,6 +456,8 @@ class Router {
         return new Response('404 - Page not found', 404);
     }
 
+    protected $is_caching_on;
+    protected $cache;
     protected $path;
     protected $query;
     protected $method;
@@ -243,6 +532,9 @@ class Router {
             $is_match = is_array($params);
 
             if ($is_match) {
+
+                // run the user-supplied callback function with the route
+                // params plus any query parameters in an object as arguments
                 return $route->callback(new Request($params, $this->query));
             }
         }
@@ -252,7 +544,16 @@ class Router {
         return self::last_error_callback();
     }
 
-    public function __construct () {
+    public function __construct (
+        $is_caching_on = false,
+        $cache_dir = __DIR__ . '/_unplug_cache'
+    ) {
+
+        $this->is_caching_on = $is_caching_on;
+
+        if ($this->is_caching_on) {
+          $this->cache = new Cache($cache_dir);
+        }
 
         $current_url = get_current_url();
         $url_parts = explode('?', $current_url, 2);
@@ -271,27 +572,35 @@ class Router {
         }
 
         $this->path = $url_path;
-        $this->query = $url_pars;
+        $this->query = $url_vars;
     }
 
     /**
      * Registers a callback on a certain GET route
      *
+     * $do_cache has no effect if caching isn't enabled on the router.
+     *
      * @param string $path
      * @param callable $callback
+     * @param bool $do_cache
      */
-    public function get ($path, callable $callback) {
-        $this->get_routes[] = new Route(self::split_path($path), $callback);
+    public function get ($path, callable $callback, $do_cache=true) {
+        $this->get_routes[] =
+            new Route(self::split_path($path), $callback, $do_cache);
     }
 
     /**
      * Registers a callback on a certain POST route
      *
+     * $do_cache has no effect if caching isn't enabled on the router.
+     *
      * @param string $path
      * @param callable $callback
+     * @param bool $do_cache
      */
-    public function post ($path, callable $callback) {
-        $this->post_routes[] = new Route(self::split_path($path), $callback);
+    public function post ($path, callable $callback, $do_cache=true) {
+        $this->post_routes[] =
+            new Route(self::split_path($path), $callback, $do_cache);
     }
 
     /**
@@ -307,9 +616,32 @@ class Router {
             $response = new Response($response);
         }
 
-        // TODO: implement middleware,
-        // pass response back through middleware stack
-        // before finally sending
+        // if caching is on, save the response to a file
+        // and write a new redirect rule
+        if ($this->is_caching_on) {
+
+            // serialise path again
+            $path = join('/', $this->path);
+
+            // serialise query again
+            $query_parts = [];
+            foreach ($this->query as $key => $val) {
+                $query_parts[] = $key . '=' . $val;
+            }
+            $query = join('&', $query_parts);
+
+            // get response string and file extension
+            if ($response->is_json) {
+                $response_str = json_encode($response->json());
+                $extension = 'json';
+            } else {
+                $response_str = $response->body();
+                $extension = 'html';
+            }
+
+            $this->cache->add($path, $query, $response_str, $extension);
+        }
+
         $response->send();
     }
 }
