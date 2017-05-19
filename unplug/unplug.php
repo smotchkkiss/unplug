@@ -7,14 +7,50 @@ Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
 
-// TODO
-// - Add cache invalidation mechanism (on save post)
-// - Make it so that the caching only needs to be switched
-//   on in one place, so if we need to register the
-//   invalidation mechanism from functions.php, then
-//   caching=true and cache_dir shouldn't be parameters
-//   on the Router constructor
+// FEATURE IDEAS - let's see if we're going to need them
 // - Add an option to switch off caching for individual routes
+// - Convenience idea: let unplug\unplug() instantiate a global
+//   $router so the user doesn't have to do it in their index.php,
+//   and instead can just start defining routes. (Also, can we not
+//   auto-start the router after all routes have been registered
+//   instead of having to call run explicitly? E.g. by forcing
+//   the user to register a catchall route and handle 404s?)
+// - Layout the cache directory like a static version of the website.
+//   So, instead of saving everything to a <sha256hash>.<extension>,
+//   save a request for a path to path/to/page/index.html. This would
+//   imply that we have to change the way queries are handled. Options:
+//   - Build Websites that don't use urls with query strings
+//     I find that hard because sometimes a page has additional state
+//     that we want to preserve but it makes no sense to save it in
+//     a hierarchical structure like a path, for example if a certain
+//     section is expanded or not. Solution may be to not preserve such
+//     state, of course.
+//   - Handle queries with caching the same way we're doing it now,
+//     and save the version with the query to path/to/page/<hashsum>.html
+//     The Problem with this solution is that it undermines the original
+//     idea of having the cache look like a static version of the site
+//   - Ignore queries in the backend, just make one-line RewriteRules
+//     and always send the same file; if necessary, restore state via
+//     JavaScript
+//   - Another thing is that if we really want it to look like a static
+//     version of the site we'll have to empty the cache dir on
+//     Cache#flush, otherwise it will start to look more like a static
+//     version of the page plus some random old crap
+// - Insane Idea: with the cache directory laid out like the static site
+//   and everything, can we not make this even more like a static page
+//   generator and generate everything in one step instead of waiting
+//   for the user to request every single page? This would, of course,
+//   mean that parametrised routes will have to know every possible
+//   parameter in order to generate all the variations. But maybe that's
+//   not too hard, if it knows which field of which post_type to look
+//   up/transform in a certain way? (Could be just another function that
+//   is given to the route and when called returns all the options for
+//   each parameter or something!) And of course queries would be
+//   problematic again, so we'll have to throw them out completely or
+//   make them a JavaScript-only thing like mentioned before (it kind
+//   of makes sense). This way, we would effectively have a static
+//   page generator with the comfortable/convenient API of a router!
+//   Best of both worlds?
 
 namespace unplug;
 
@@ -248,6 +284,19 @@ class Cache {
     }
 
     /**
+     * Public interface ii: invalidate the cache
+     */
+    public function flush () {
+
+        $this->remove_htaccess_section();
+        $this->write_htaccess();
+
+        // TOTHINKABOUT:
+        // we may want to delete the files
+        // in the cache dir at some point
+    }
+
+    /**
      * Read the .htaccess file from the disk (if any)
      * and splits it into an array of lines.
      *
@@ -347,9 +396,6 @@ class Cache {
      */
     private function save ($path, $query, $response, $extension) {
 
-        // TODO delete this debug line
-        $response = "THIS IS CACHED VERSION!!!\n\n" . $response;
-
         if (!file_exists($this->dir)) {
             mkdir($this->dir, 0755);
         }
@@ -366,6 +412,27 @@ class Cache {
         }
 
         return $file;
+    }
+
+    /**
+     * Remove the complete Unplug section from .htaccess
+     */
+    private function remove_htaccess_section () {
+
+        $begin = array_search('# BEGIN Unplug', $this->htaccess, true);
+        $end = array_search('# END Unplug', $this->htaccess, true);
+
+        // plus one, because it's the total number of lines
+        // we want to remove, NOT the number of lines TO GO
+        // from the $begin line
+        $length = $end - $begin + 1;
+
+        array_splice($this->htaccess, $begin, $length);
+
+        // remove empty lines from the beginning
+        while (isset($this->htaccess[0]) && $this->htaccess[0] === '') {
+            array_shift($this->htaccess);
+        }
     }
 
     /**
@@ -456,7 +523,6 @@ class Router {
         return new Response('404 - Page not found', 404);
     }
 
-    protected $is_caching_on;
     protected $cache;
     protected $path;
     protected $query;
@@ -544,15 +610,10 @@ class Router {
         return self::last_error_callback();
     }
 
-    public function __construct (
-        $is_caching_on = false,
-        $cache_dir = __DIR__ . '/_unplug_cache'
-    ) {
+    public function __construct () {
 
-        $this->is_caching_on = $is_caching_on;
-
-        if ($this->is_caching_on) {
-          $this->cache = new Cache($cache_dir);
+        if (UNPLUG_CACHING) {
+          $this->cache = new Cache(UNPLUG_CACHE_DIR);
         }
 
         $current_url = get_current_url();
@@ -618,7 +679,7 @@ class Router {
 
         // if caching is on, save the response to a file
         // and write a new redirect rule
-        if ($this->is_caching_on) {
+        if (UNPLUG_CACHING) {
 
             // serialise path again
             $path = join('/', $this->path);
@@ -646,11 +707,21 @@ class Router {
     }
 }
 
-// check if this is an admin-panel
-// request, and if not, prevent wordpress from parsing
-// the url and running a query based on it.
-function prevent_parse_request () {
+/**
+ * The most important export from this plugin.
+ * Call unplug\unplug in your functions.php to
+ * prevent WordPress from running its default
+ * query and template selection thing.
+ * Also switch on caching here.
+ *
+ * @param array options
+ */
+function unplug ($options=[]) {
 
+    // check if this is an admin-panel
+    // request, and if not, prevent wordpress from parsing
+    // the url and running a query based on it.
+    // ---
     // if the path starts with admin or login,
     // which are two convenient wordpress redirects, we don't
     // want to prevent the parsing, either. Same goes for paths
@@ -666,5 +737,31 @@ function prevent_parse_request () {
             remove_action('template_redirect', 'redirect_canonical');
             return FALSE;
         }, 30, 2);
+    }
+
+    // if caching is on, make sure to empty the cache on
+    // save_post and set a few constants so the router
+    // knows whether we want to cache or not
+    if (isset($options['caching']) && $options['caching'] === true) {
+
+        define('UNPLUG_CACHING', true);
+        if (isset($options['cache_dir'])) {
+            define('UNPLUG_CACHE_DIR', $options['cache_dir']);
+        } else {
+            define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
+        }
+
+        add_action('save_post', function () {
+
+            // this function will only be called if caching
+            // is on, so it's safe to assume that
+            // UNPLUG_CACHE_DIR will be set
+            $cache = new Cache(UNPLUG_CACHE_DIR);
+            $cache->flush();
+        });
+
+    } else {
+
+        define('UNPLUG_CACHING', false);
     }
 }
