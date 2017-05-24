@@ -76,10 +76,12 @@ class Route {
 
 class Request {
 
+    public $path;
     public $params;
     public $query;
 
-    public function __construct (array $params, array $query) {
+    public function __construct (array $path, array $params, array $query) {
+        $this->path = $path;
         $this->params = $params;
         $this->query = $query;
     }
@@ -601,7 +603,11 @@ class Router {
 
                 // run the user-supplied callback function with the route
                 // params plus any query parameters in an object as arguments
-                return $route->callback(new Request($params, $this->query));
+                return $route->callback(new Request(
+                  $this->path,
+                  $params,
+                  $this->query
+                ));
             }
         }
 
