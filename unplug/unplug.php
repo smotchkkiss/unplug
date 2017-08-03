@@ -512,7 +512,11 @@ class Router {
             return $s; // empty string evaluates to false
         });
         // reset the array keys to 0..*
-        return array_values($no_empty_str);
+        $numbered_path_segments = array_values($no_empty_str);
+        // path segments may have urlencoded special charactes
+        return array_map(function ($s) {
+            return urldecode($s);
+        }, $numbered_path_segments);
     }
 
     /**
