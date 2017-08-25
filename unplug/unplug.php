@@ -290,12 +290,22 @@ class Cache {
      */
     public function flush () {
 
+        // clean up rules from the .htaccess file,
+        // but don't delete the unplug section itself.
+        // this way, the user can, after an unplug
+        // section has been established in the file,
+        // decide for other rules to come before or
+        // after it, and that order will be maintained.
+        // (before we would always insert a new unplug
+        // section at the beginning of the htaccess
+        // file, making it impossible to have e.g.
+        // a global http -> https redirect before)
         $this->remove_all_rules();
         $this->write_htaccess();
 
-        // TOTHINKABOUT:
-        // we may want to delete the files
-        // in the cache dir at some point
+        // delete everything in the cache dir,
+        // but not the cache dir itself.
+        $this->empty_cache_directory();
     }
 
     /**
@@ -489,6 +499,46 @@ class Cache {
         }
 
         $this->htaccess_path = $path;
+    }
+
+    /**
+     * Recursively delete all the files and folders
+     * in the cache directory
+     */
+    private function empty_cache_directory () {
+
+        self::empty_directory($this->dir);
+    }
+
+    /**
+     * Recursively delete all the files and folders
+     * in a directory and the directory itself
+     *
+     * @param string $directory
+     */
+    private static function recursive_remove_directory ($directory) {
+
+        self::empty_directory($directory);
+
+        rmdir($directory);
+    }
+
+    /**
+     * Recursively delete all the files and folders
+     * in a directory
+     *
+     * @param string $directory
+     */
+    private static function empty_directory ($directory) {
+
+        foreach (glob("{$directory}/*") as $file) {
+
+            if (is_dir($file)) {
+                self::recursive_remove_directory($file);
+            } else {
+                unlink($file);
+            }
+        }
     }
 
     /**
