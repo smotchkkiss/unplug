@@ -267,7 +267,7 @@ class Cache {
      */
     public function __construct ($dir) {
 
-        $this->dir = $dir;
+        $this->dir = realpath($dir);
         self::assert_sha256_available();
         $this->find_htaccess_path();
         $this->read_htaccess();
@@ -279,9 +279,13 @@ class Cache {
      */
     public function add ($path, $query, $response, $extension) {
 
+        // get the relative path to the cache dir
+        $rel_dir = $this->find_rel_dir();
+
         $path = $this->prepare_path($path);
 
-        $file = $this->save($path, $query, $response, $extension);
+        $filename = $this->save($path, $query, $response, $extension);
+        $file = $rel_dir . '/' . $filename;
 
         $rule = self::create_rule($path, $query, $file);
         $this->insert_rule($rule);
@@ -420,7 +424,8 @@ class Cache {
         // is it ridiculous to add the questionmark?
         $hash = hash('sha256', $path . '?' . $query);
 
-        $file = $this->dir . '/' . $hash . '.' . $extension;
+        $filename = $hash . '.' . $extension;
+        $file = $this->dir . '/' . $filename;
 
         $success = file_put_contents($file, $response);
 
@@ -428,7 +433,7 @@ class Cache {
             throw new \Exception('Failed to write ' . $file);
         }
 
-        return $file;
+        return $filename;
     }
 
     /**
@@ -504,6 +509,36 @@ class Cache {
         }
 
         $this->htaccess_path = $path;
+    }
+
+    /**
+     * Find the relative path of the cache dir --
+     * relative to the location of the .htaccess file!
+     *
+     * @returns string
+     */
+    private function find_rel_dir () {
+
+        // split the paths to the htaccess file and
+        // to the cache dir into parts
+        $htaccess_path = explode('/', $this->htaccess_path);
+        $dir_path = explode('/', $this->dir);
+
+        // remove the last element of the htacess path,
+        // because it is the .htaccess filename
+        array_pop($htaccess_path);
+
+        // get the number of remaining path components ...
+        $htaccess_path_length = sizeof($htaccess_path);
+
+        // ... remove that many elements from the beginning
+        // of the absolute path of the cache dir
+        $dir_path = array_slice($dir_path, $htaccess_path_length);
+
+        // join the remaining parts together and prepend
+        // them with ./ to mark that we mean 'relative to
+        // the current directory' (may not be necessary?)
+        return './' . join('/', $dir_path);
     }
 
     /**
