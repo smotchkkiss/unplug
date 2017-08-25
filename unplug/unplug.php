@@ -290,7 +290,7 @@ class Cache {
      */
     public function flush () {
 
-        $this->remove_htaccess_section();
+        $this->remove_all_rules();
         $this->write_htaccess();
 
         // TOTHINKABOUT:
@@ -417,7 +417,34 @@ class Cache {
     }
 
     /**
+     * Remove all rewrite rules from the .htaccess Unplug section
+     */
+    private function remove_all_rules () {
+
+        $begin = array_search('# BEGIN Unplug rules', $this->htaccess, true);
+        $end = array_search('# END Unplug rules', $this->htaccess, true);
+
+        // shift begin up by 1, because we don't want
+        // to remove the # BEGIN Unplug rules line
+        $begin += 1;
+
+        $length = $end - $begin;
+
+        // if there is no Unplug section, $length will be -1
+        // if there are no rules, $length will be 0
+        // in both cases, we don't want to remove anything
+        if ($length > 0) {
+
+            array_splice($this->htaccess, $begin, $length);
+        }
+    }
+
+    /**
      * Remove the complete Unplug section from .htaccess
+     *
+     * NOTE This function is currently unused because it
+     *      was superseded by remove_all_rules; If it becomes
+     *      clear that we won't need it again, remove it!
      */
     private function remove_htaccess_section () {
 
