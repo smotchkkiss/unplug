@@ -152,14 +152,18 @@ class Response {
         } else if (is_array($body)) {
             $this->json($body);
         } else {
-            throw new \Exception('Response body must be given as string or array!');
+            throw new \Exception(
+                'Response body must be given as string or array!'
+            );
         }
     }
 
     public function send () {
 
         if (headers_sent()) {
-            throw new \Exception('Headers have been sent before Response#send()!');
+            throw new \Exception(
+                'Headers have been sent before Response#send()!'
+            );
         }
 
         status_header($this->status);
