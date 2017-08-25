@@ -424,12 +424,17 @@ class Cache {
         $begin = array_search('# BEGIN Unplug', $this->htaccess, true);
         $end = array_search('# END Unplug', $this->htaccess, true);
 
-        // plus one, because it's the total number of lines
-        // we want to remove, NOT the number of lines TO GO
-        // from the $begin line
-        $length = $end - $begin + 1;
+        // if $begin == $end, there cannot be a (complete)
+        // Unplug section, so we'd better not remove anything!
+        if ($begin != $end) {
 
-        array_splice($this->htaccess, $begin, $length);
+            // plus one, because it's the total number of lines
+            // we want to remove, NOT the number of lines TO GO
+            // from the $begin line
+            $length = $end - $begin + 1;
+
+            array_splice($this->htaccess, $begin, $length);
+        }
 
         // remove empty lines from the beginning
         while (isset($this->htaccess[0]) && $this->htaccess[0] === '') {
