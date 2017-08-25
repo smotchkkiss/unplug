@@ -412,6 +412,7 @@ class Cache {
      */
     private function save ($path, $query, $response, $extension) {
 
+        // create the cache dir if it doesn't exist
         if (!file_exists($this->dir)) {
             mkdir($this->dir, 0755);
         }
