@@ -267,6 +267,11 @@ class Cache {
      */
     public function __construct ($dir) {
 
+        // create the cache dir if it doesn't exist
+        if (!file_exists($dir)) {
+            mkdir($dir, 0755);
+        }
+
         $this->dir = realpath($dir);
         self::assert_sha256_available();
         $this->find_htaccess_path();
@@ -418,11 +423,6 @@ class Cache {
      * @throws if file not writable
      */
     private function save ($path, $query, $response, $extension) {
-
-        // create the cache dir if it doesn't exist
-        if (!file_exists($this->dir)) {
-            mkdir($this->dir, 0755);
-        }
 
         // is it ridiculous to add the questionmark?
         $hash = hash('sha256', $path . '?' . $query);
