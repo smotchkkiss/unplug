@@ -343,7 +343,7 @@ class Cache {
 
         $htaccess_str = join("\n", $this->htaccess);
 
-        $success = file_put_contents($this->htaccess_path, $htaccess_str);
+        $success = file_put_contents($this->htaccess_path, $htaccess_str, LOCK_EX);
 
         if ($success === false) {
             throw new \Exception('Could not write ' . $this->htaccess_path);
