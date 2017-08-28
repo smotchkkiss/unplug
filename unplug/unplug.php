@@ -327,7 +327,8 @@ class Cache {
         $htaccess_str = file_get_contents($this->htaccess_path);
 
         if ($htaccess_str === false) {
-            throw new \Exception('Could not read ' . $this->htaccess_path);
+            $message = 'Could not read ' . $this->htaccess_path;
+            throw new \Exception($message);
         }
 
         $this->htaccess = explode("\n", $htaccess_str);
@@ -343,10 +344,12 @@ class Cache {
 
         $htaccess_str = join("\n", $this->htaccess);
 
-        $success = file_put_contents($this->htaccess_path, $htaccess_str, LOCK_EX);
+        $success = file_put_contents(
+            $this->htaccess_path, $htaccess_str, LOCK_EX);
 
         if ($success === false) {
-            throw new \Exception('Could not write ' . $this->htaccess_path);
+            $message = 'Could not write ' . $this->htaccess_path;
+            throw new \Exception($message);
         }
     }
 
