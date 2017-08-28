@@ -254,7 +254,7 @@ class Cache {
     private static function create_rule ($path, $query, $file) {
         $rule = [];
         $rule[] = 'RewriteCond %{QUERY_STRING} ^' . preg_quote($query) . '$';
-        $rule[] = 'RewriteRule ^' . preg_quote($path) . '\/?$ ' . $file . '? [L]';
+        $rule[] = 'RewriteRule ^' . preg_quote($path) . '/?$ ' . $file . '? [L]';
         return $rule;
     }
 
