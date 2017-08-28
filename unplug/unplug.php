@@ -293,9 +293,12 @@ class Cache {
         $file = $rel_dir . '/' . $filename;
 
         $rule = self::create_rule($path, $query, $file);
-        $this->insert_rule($rule);
 
-        $this->write_htaccess();
+        if (!$this->rule_exists($rule)) {
+
+            $this->insert_rule($rule);
+            $this->write_htaccess();
+        }
     }
 
     /**
@@ -387,11 +390,11 @@ class Cache {
     private function insert_rule (array $rule) {
 
         // true means strict comparison (no type coercion)
-        $index = array_search('# END Unplug rules', $this->htaccess, true);
+        $end = array_search('# END Unplug rules', $this->htaccess, true);
 
         // if there is no Unplug section in the .htaccess file,
         // we insert one and search again
-        if ($index === false) {
+        if ($end === false) {
 
             // generate the Unplug section
             $unplug_htaccess_section =
@@ -404,13 +407,55 @@ class Cache {
 
             // update the index--this can't be false again,
             // since we just inserted a '# END Unplug rules' line
-            $index = array_search('# END Unplug rules', $this->htaccess, true);
+            $end = array_search('# END Unplug rules', $this->htaccess, true);
         }
 
         // insert into $this->htaccess, beginning from $index,
         // and replacing 0 of the existing items (= just pushing
         // them to the back of the array), the items in $rules
-        array_splice($this->htaccess, $index, 0, $rule);
+        array_splice($this->htaccess, $end, 0, $rule);
+    }
+
+    /**
+     * Check if a rule is already in the htaccess
+     *
+     * @param array $rule
+     *
+     * @returns bool
+     */
+    private function rule_exists (array $rule) {
+
+        // true means strict comparison (no type coercion)
+        $begin = array_search('# BEGIN Unplug rules', $this->htaccess, true);
+        $end = array_search('# END Unplug rules', $this->htaccess, true);
+
+        $rule_exists = false;
+
+        if ($begin !== false && $end !== false) {
+
+            $rule_lines = sizeof($rule);
+
+            // iterate over the rules section of $this->htaccess;
+            // step width is $rule_lines to support arbitrary-length
+            // rules (but all rules must be of the same length!)
+            for ($i = $begin + 1; $i < $end; $i += $rule_lines) {
+
+                $all_the_same = true;
+
+                foreach ($rule as $index => $line) {
+                    if ($this->htaccess[$i + $index] !== $line) {
+                        $all_the_same = false;
+                    }
+                }
+
+                if ($all_the_same) {
+                    $rule_exists = true;
+                    break;
+                }
+            }
+        }
+
+        return $rule_exists;
     }
 
     /**
