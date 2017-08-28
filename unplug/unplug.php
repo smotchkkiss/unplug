@@ -318,7 +318,8 @@ class Cache {
 
         // delete everything in the cache dir,
         // but not the cache dir itself.
-        $this->empty_cache_directory();
+        // TODO make empty_cache_directory thread safe
+        // $this->empty_cache_directory();
     }
 
     /**
