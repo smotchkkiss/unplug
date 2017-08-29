@@ -706,6 +706,7 @@ class Router {
     protected $method;
     protected $get_routes = [];
     protected $post_routes = [];
+    protected $do_cache = false;
 
     /**
      * Checks wether the path matches a route specification
@@ -775,6 +776,9 @@ class Router {
             $is_match = is_array($params);
 
             if ($is_match) {
+
+                // copy the route's caching option value
+                $this->do_cache = $route->do_cache;
 
                 // run the user-supplied callback function with the route
                 // params plus any query parameters in an object as arguments
@@ -858,9 +862,9 @@ class Router {
             $response = new Response($response);
         }
 
-        // if caching is on, save the response to a file
-        // and write a new redirect rule
-        if (UNPLUG_CACHING) {
+        // if caching is on generally AND switched on for the route,
+        // save the response to a file and write a new redirect rule
+        if (UNPLUG_CACHING && $this->do_cache) {
 
             // serialise path again
             $path = join('/', $this->path);
