@@ -251,9 +251,14 @@ class Cache {
      * @param string $query
      * @returns array
      */
-    private static function create_rule ($path, $query, $file) {
+    private static function create_rule ($path, $file) {
+
+        // this could be written less verbose of course now that there's only
+        // one line, but I don't want to remove the multiline-rule support
+        // right now in case we need it later (or want to add comments to rules,
+        // for example). Multiline rules are also explicitly supported in
+        // rule_exists and insert_rule.
         $rule = [];
-        $rule[] = 'RewriteCond %{QUERY_STRING} ^' . preg_quote($query) . '$';
         $rule[] = 'RewriteRule ^' . preg_quote($path) . '/?$ ' . $file . '? [L]';
         return $rule;
     }
@@ -282,17 +287,17 @@ class Cache {
     /**
      * Public interface: cache a new response
      */
-    public function add ($path, $query, $response, $extension) {
+    public function add ($path, $response, $extension) {
 
         // get the relative path to the cache dir
         $rel_dir = $this->find_rel_dir();
 
         $path = $this->prepare_path($path);
 
-        $filename = $this->save($path, $query, $response, $extension);
+        $filename = $this->save($path, $response, $extension);
         $file = $rel_dir . '/' . $filename;
 
-        $rule = self::create_rule($path, $query, $file);
+        $rule = self::create_rule($path, $file);
 
         if (!$this->rule_exists($rule)) {
 
@@ -468,10 +473,9 @@ class Cache {
      * @returns string
      * @throws if file not writable
      */
-    private function save ($path, $query, $response, $extension) {
+    private function save ($path, $response, $extension) {
 
-        // is it ridiculous to add the questionmark?
-        $hash = hash('sha256', $path . '?' . $query);
+        $hash = hash('sha256', $path);
 
         $filename = $hash . '.' . $extension;
         $file = $this->dir . '/' . $filename;
@@ -869,13 +873,6 @@ class Router {
             // serialise path again
             $path = join('/', $this->path);
 
-            // serialise query again
-            $query_parts = [];
-            foreach ($this->query as $key => $val) {
-                $query_parts[] = $key . '=' . $val;
-            }
-            $query = join('&', $query_parts);
-
             // get response string and file extension
             if ($response->is_json) {
                 $response_str = json_encode($response->json());
@@ -885,7 +882,7 @@ class Router {
                 $extension = 'html';
             }
 
-            $this->cache->add($path, $query, $response_str, $extension);
+            $this->cache->add($path, $response_str, $extension);
         }
 
         $response->send();
