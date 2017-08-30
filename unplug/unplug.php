@@ -54,6 +54,12 @@ Author URI: http://unfun.de
 
 namespace unplug;
 
+// make sure UNPLUG_CACHE is defined,
+// so we don't have to check that everytime
+if (!defined('UNPLUG_CACHE')) {
+    define('UNPLUG_CACHE', false);
+}
+
 class Route {
 
     public $path;
@@ -801,7 +807,7 @@ class Router {
 
     public function __construct () {
 
-        if (UNPLUG_CACHING) {
+        if (UNPLUG_CACHE) {
           $this->cache = new Cache(UNPLUG_CACHE_DIR);
         }
 
@@ -868,7 +874,7 @@ class Router {
 
         // if caching is on generally AND switched on for the route,
         // save the response to a file and write a new redirect rule
-        if (UNPLUG_CACHING && $this->do_cache) {
+        if (UNPLUG_CACHE && $this->do_cache) {
 
             // serialise path again
             $path = join('/', $this->path);
@@ -924,9 +930,8 @@ function unplug ($options=[]) {
     // if caching is on, make sure to empty the cache on
     // save_post and set a few constants so the router
     // knows whether we want to cache or not
-    if (isset($options['caching']) && $options['caching'] === true) {
+    if (UNPLUG_CACHE) {
 
-        define('UNPLUG_CACHING', true);
         if (isset($options['cache_dir'])) {
             define('UNPLUG_CACHE_DIR', $options['cache_dir']);
         } else {
@@ -942,8 +947,5 @@ function unplug ($options=[]) {
             $cache->flush();
         });
 
-    } else {
-
-        define('UNPLUG_CACHING', false);
     }
 }
