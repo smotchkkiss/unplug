@@ -848,15 +848,15 @@ class Router {
     /**
      * Registers a callback on a certain POST route
      *
-     * $do_cache has no effect if caching isn't enabled on the router.
+     * post routes will never be cached.
      *
      * @param string $path
      * @param callable $callback
      * @param bool $do_cache
      */
-    public function post ($path, callable $callback, $do_cache=true) {
+    public function post ($path, callable $callback) {
         $this->post_routes[] =
-            new Route(self::split_path($path), $callback, $do_cache);
+            new Route(self::split_path($path), $callback, false);
     }
 
     /**
