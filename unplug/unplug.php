@@ -866,32 +866,35 @@ class Router {
      */
     public function run () {
 
-        $response = $this->execute_matching_route();
+        if (defined('UNPLUG_RUN') && UNPLUG_RUN) {
 
-        if (is_string($response) || is_array($response)) {
-            $response = new Response($response);
-        }
+            $response = $this->execute_matching_route();
 
-        // if caching is on generally AND switched on for the route,
-        // save the response to a file and write a new redirect rule
-        if (UNPLUG_CACHE && $this->do_cache) {
-
-            // serialise path again
-            $path = join('/', $this->path);
-
-            // get response string and file extension
-            if ($response->is_json) {
-                $response_str = json_encode($response->json());
-                $extension = 'json';
-            } else {
-                $response_str = $response->body();
-                $extension = 'html';
+            if (is_string($response) || is_array($response)) {
+                $response = new Response($response);
             }
 
-            $this->cache->add($path, $response_str, $extension);
-        }
+            // if caching is on generally AND switched on for the route,
+            // save the response to a file and write a new redirect rule
+            if (UNPLUG_CACHE && $this->do_cache) {
 
-        $response->send();
+                // serialise path again
+                $path = join('/', $this->path);
+
+                // get response string and file extension
+                if ($response->is_json) {
+                    $response_str = json_encode($response->json());
+                    $extension = 'json';
+                } else {
+                    $response_str = $response->body();
+                    $extension = 'html';
+                }
+
+                $this->cache->add($path, $response_str, $extension);
+            }
+
+            $response->send();
+        }
     }
 }
 
@@ -920,11 +923,18 @@ function unplug ($options=[]) {
     $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
 
     if ($allowed) {
+
+        define('UNPLUG_RUN', true);
+
         add_action('do_parse_request', function ($do_parse, $wp) {
             $wp->query_vars = [];
             remove_action('template_redirect', 'redirect_canonical');
             return FALSE;
         }, 30, 2);
+
+    } else {
+
+        define('UNPLUG_RUN', false);
     }
 
     // if caching is on, make sure to empty the cache on
@@ -933,8 +943,11 @@ function unplug ($options=[]) {
     if (UNPLUG_CACHE) {
 
         if (isset($options['cache_dir'])) {
+
             define('UNPLUG_CACHE_DIR', $options['cache_dir']);
+
         } else {
+
             define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
         }
 
