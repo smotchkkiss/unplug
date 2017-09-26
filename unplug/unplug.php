@@ -690,7 +690,11 @@ class Router {
     protected static function split_path ($path) {
         $path_segments = explode('/', $path);
         $no_empty_str = array_filter($path_segments, function ($s) {
-            return $s; // empty string evaluates to false
+            // compare to empty string explicitly,
+            // as e.g. a string with a single zero in it
+            // would also ne coerced to false
+            // (of course, PHP, what was I thinking!?)
+            return $s !== '';
         });
         // reset the array keys to 0..*
         $numbered_path_segments = array_values($no_empty_str);
