@@ -955,13 +955,17 @@ function unplug ($options=array()) {
             define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
         }
 
-        add_action('save_post', function () {
+        add_action('save_post', function () use ($options) {
 
             // this function will only be called if caching
             // is on, so it's safe to assume that
             // UNPLUG_CACHE_DIR will be set
             $cache = new Cache(UNPLUG_CACHE_DIR);
             $cache->flush();
+
+            if (isset($options['on_flush'])) {
+              $options['on_flush']($cache);
+            }
         });
 
     }
