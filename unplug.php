@@ -228,7 +228,7 @@ class Cache {
     */
     private static function generate_htaccess_section ($rewrite_base) {
 
-        $directives = [];
+        $directives = array();
         $directives[] = '# BEGIN Unplug';
         $directives[] = '<IfModule mod_rewrite.c>';
         $directives[] = 'RewriteEngine On';
@@ -264,7 +264,7 @@ class Cache {
         // right now in case we need it later (or want to add comments to rules,
         // for example). Multiline rules are also explicitly supported in
         // rule_exists and insert_rule.
-        $rule = [];
+        $rule = array();
         $rule[] = 'RewriteRule ^' . preg_quote($path) . '/?$ ' . $file . '? [L]';
         return $rule;
     }
@@ -669,7 +669,7 @@ class Cache {
  */
 function get_current_url () {
 
-    $current_url = trim(esc_url_raw(add_query_arg([])), '/');
+    $current_url = trim(esc_url_raw(add_query_arg(array())), '/');
     $home_path = trim(parse_url(home_url(), PHP_URL_PATH), '/');
     if ($home_path && strpos($current_url, $home_path) === 0) {
         $current_url = trim(substr($current_url, strlen($home_path)), '/');
@@ -718,8 +718,8 @@ class Router {
     protected $path;
     protected $query;
     protected $method;
-    protected $get_routes = [];
-    protected $post_routes = [];
+    protected $get_routes = array();
+    protected $post_routes = array();
     protected $do_cache = false;
 
     /**
@@ -731,7 +731,7 @@ class Router {
      */
     protected function path_matches_route (array $routeSpec) {
 
-        $params = [];
+        $params = array();
         $PSSize = sizeof($this->path);
         $RSSize = sizeof($routeSpec);
 
@@ -820,7 +820,7 @@ class Router {
 
         $url_path = self::split_path($url_parts[0]);
 
-        $url_vars = [];
+        $url_vars = array();
         if (isset($url_parts[1])) {
             parse_str($url_parts[1], $url_vars);
         }
@@ -911,7 +911,7 @@ class Router {
  *
  * @param array options
  */
-function unplug ($options=[]) {
+function unplug ($options=array()) {
 
     // check if this is an admin-panel
     // request, and if not, prevent wordpress from parsing
@@ -931,7 +931,7 @@ function unplug ($options=[]) {
         define('UNPLUG_RUN', true);
 
         add_action('do_parse_request', function ($do_parse, $wp) {
-            $wp->query_vars = [];
+            $wp->query_vars = array();
             remove_action('template_redirect', 'redirect_canonical');
             return FALSE;
         }, 30, 2);
