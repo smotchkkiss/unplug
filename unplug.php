@@ -963,8 +963,8 @@ function unplug ($options=array()) {
             $cache = new Cache(UNPLUG_CACHE_DIR);
             $cache->flush();
 
-            if (isset($options['on_flush'])) {
-              $options['on_flush']($cache);
+            if (isset($options['on_save_post'])) {
+                $options['on_save_post']($cache);
             }
         });
 
