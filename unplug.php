@@ -66,7 +66,7 @@ class Route {
     public $callback;
     public $do_cache;
 
-    public function __construct (array $path, callable $callback, $do_cache) {
+    public function __construct (array $path, $callback, $do_cache) {
         $this->path = $path;
         $this->callback = $callback;
         $this->do_cache = $do_cache;
@@ -879,7 +879,7 @@ class Router {
      * @param callable $callback
      * @param bool $do_cache
      */
-    public function get ($path, callable $callback, $do_cache=true) {
+    public function get ($path, $callback, $do_cache=true) {
         $this->get_routes[] =
             new Route(self::split_path($path), $callback, $do_cache);
     }
