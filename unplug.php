@@ -52,14 +52,6 @@ Author URI: http://unfun.de
 //   page generator with the comfortable/convenient API of a router!
 //   Best of both worlds?
 
-// TODO:
-// - don't use protected properties, it's just weird.
-//   supplant them with private props or just make everything public.
-// - unify all kinds of Responses under 1 interface,
-//   and give them a is_cacheable property.
-//   404s are not cacheable, but can have a html payload,
-//   and so on.
-
 namespace unplug;
 
 // make sure UNPLUG_CACHE is defined,
@@ -72,12 +64,10 @@ class Route {
 
     public $path;
     public $callback;
-    public $do_cache;
 
-    public function __construct (array $path, $callback, $do_cache) {
+    public function __construct (array $path, $callback) {
         $this->path = $path;
         $this->callback = $callback;
-        $this->do_cache = $do_cache;
     }
 
     // make the callback fn directly callable
@@ -101,36 +91,70 @@ class Request {
     }
 }
 
-interface CacheableContent {
+interface ResponseMethods {
 
-    public function get_payload ();
-    public function get_extension ();
+    public function is_cacheable ();
+    public function get_status ();
+    public function send ();
 }
 
-interface CacheableRedirect {
+interface ContentResponseMethods {
+
+    public function get_extension ();
+    public function get_body ();
+}
+
+interface RedirectResponseMethods {
 
     public function get_location ();
-    public function get_status ();
 }
 
-class HTMLResponse implements CacheableContent {
+abstract class Response implements ResponseMethods {
+
+    protected $status;
+
+    public function get_status () {
+
+        return $this->status;
+    }
+}
+
+abstract class ContentResponse extends Response implements ContentResponseMethods {
 
     protected $body;
 
-    public function __construct ($body='', $status=200) {
+    public function __construct ($body='', $is_ok=true) {
 
         $this->body = $body;
-        $this->status = $status;
+
+        if ($is_ok) {
+            $this->status = '200';
+        } else {
+            $this->status = '404';
+        }
     }
 
-    public function get_payload () {
+    public function is_cacheable () {
 
-        return $this->body;
+        return $this->status === '200';
     }
+
+    public function get_status () {
+
+        return $this->status;
+    }
+}
+
+class HTMLResponse extends ContentResponse {
 
     public function get_extension () {
 
         return 'html';
+    }
+
+    public function get_body () {
+
+        return $this->body;
     }
 
     public function send () {
@@ -140,38 +164,56 @@ class HTMLResponse implements CacheableContent {
     }
 }
 
-class JSONResponse implements CacheableContent {
-
-    protected $data;
-
-    public function __construct ($data=array()) {
-
-        $this->data = $data;
-    }
-
-    public function get_payload () {
-
-        return json_encode($this->data);
-    }
+class JSONResponse extends ContentResponse {
 
     public function get_extension () {
 
         return 'json';
     }
 
+    public function get_body () {
+
+        return json_encode($this->body);
+    }
+
     public function send () {
 
         status_header(200);
-        wp_send_json($this->data);
+        wp_send_json($this->body);
     }
 }
 
-class AbstractRedirect implements CacheableRedirect {
+function make_content_response ($response, $found=true) {
 
-    private $location;
-    private $status;
+    if ($response instanceof Response) {
+        return $response;
+    }
+    if (is_string($response)) {
+        return new HTMLResponse($response, $found);
+    }
+    if (is_array($response)) {
+        return new JSONResponse($response, $found);
+    }
+    return new HTMLResponse('', false);
+}
 
-    private static function normalise_location ($location) {
+class RedirectResponse extends Response implements RedirectResponseMethods {
+
+    protected $location;
+    protected $status;
+
+    public function __construct ($location, $is_permanent=true) {
+
+        $this->location = self::normalise_location($location);
+
+        if ($is_permanent) {
+            $this->status = '301';
+        } else {
+            $this->status = '302';
+        }
+    }
+
+    protected static function normalise_location ($location) {
 
         if ($location[0] !== '/') {
             $location = '/' . $location;
@@ -182,19 +224,14 @@ class AbstractRedirect implements CacheableRedirect {
         return get_site_url() . $location;
     }
 
-    public function __construct ($location='/') {
+    public function is_cacheable () {
 
-        $this->location = self::normalise_location($location);
+        return true;
     }
 
     public function get_location () {
 
         return $this->location;
-    }
-
-    public function get_status () {
-
-        return $this->status;
     }
 
     public function send () {
@@ -203,22 +240,24 @@ class AbstractRedirect implements CacheableRedirect {
     }
 }
 
-class PermanentRedirect extends AbstractRedirect {
+/**
+ * Convenience functions for use in routes
+ */
 
-    private $status = '301';
+function ok ($response='') {
+    return make_content_response($response);
 }
 
-class TemporaryRedirect extends AbstractRedirect {
-
-    private $status = '302';
+function not_found ($response='') {
+    return make_content_response($response, false);
 }
 
-class NotFoundResponse {
+function moved_permanently ($location='/') {
+    return new RedirectResponse($location);
+}
 
-    public function send () {
-
-        status_header(404);
-    }
+function found ($location='/') {
+    return new RedirectResponse($location);
 }
 
 class Cache {
@@ -356,21 +395,29 @@ class Cache {
     }
 
     /**
-     * Public interface: cache a new response
+     * New public interface: cache a new Response
      */
-    public function add ($path, $response, $extension) {
+    public function add ($path, $response) {
 
         // get the relative path to the cache dir
         $rel_dir = $this->find_rel_dir();
 
         $path = $this->prepare_path($path);
 
-        $filename = $this->save($path, $response, $extension);
-        $file = $rel_dir . '/' . $filename;
+        if ($response instanceof ContentResponse) {
 
-        $rule = self::create_rule($path, $file);
+            $filename = $this->save($path, $response);
+            $file = $rel_dir . '/' . $filename;
 
-        if (!$this->rule_exists($rule)) {
+            $rule = self::create_rule($path, $file);
+
+        } elseif ($response instanceof RedirectResponse) {
+
+            $rule = self::create_rule_redirect(
+                $path, $response->get_location(), $response->get_status());
+        }
+
+        if (isset($rule) && !$this->rule_exists($rule)) {
 
             $this->insert_rule($rule);
             $this->write_htaccess();
@@ -386,21 +433,6 @@ class Cache {
         $file = $rel_dir . '/' . $filename;
 
         $rule = self::create_rule_regexp($regexp, $file);
-
-        if (!$this->rule_exists($rule)) {
-
-            $this->insert_rule($rule);
-            $this->write_htaccess();
-        }
-    }
-
-    /**
-     * Add a redirect rule to the .htaccess, without saving
-     * anything to a file or so.
-     */
-    public function add_redirect ($path, $location, $status) {
-
-        $rule = self::create_rule_redirect($path, $location, $status);
 
         if (!$this->rule_exists($rule)) {
 
@@ -576,11 +608,11 @@ class Cache {
      * @returns string
      * @throws if file not writable
      */
-    private function save ($id, $response, $extension) {
+    private function save ($path, $response) {
 
-        $hash = hash('sha256', $id);
+        $hash = hash('sha256', $path);
 
-        $filename = $hash . '.' . $extension;
+        $filename = $hash . '.' . $response->get_extension();
         $file = $this->dir . '/' . $filename;
 
         $success = file_put_contents($file, $response);
@@ -808,7 +840,7 @@ class Router {
      * exhaustive routes.
      */
     protected static function last_error_callback () {
-        return new NotFoundResponse();
+        return not_found();
     }
 
     protected $cache;
@@ -817,7 +849,6 @@ class Router {
     protected $method;
     protected $get_routes = array();
     protected $post_routes = array();
-    protected $do_cache = false;
 
     /**
      * Checks wether the path matches a route specification
@@ -888,9 +919,6 @@ class Router {
 
             if ($is_match) {
 
-                // copy the route's caching option value
-                $this->do_cache = $route->do_cache;
-
                 // run the user-supplied callback function with the route
                 // params plus any query parameters in an object as arguments
                 return $route->callback(new Request(
@@ -907,10 +935,6 @@ class Router {
     }
 
     public function __construct () {
-
-        if (UNPLUG_CACHE) {
-          $this->cache = new Cache(UNPLUG_CACHE_DIR);
-        }
 
         $current_url = get_current_url();
         $url_parts = explode('?', $current_url, 2);
@@ -935,15 +959,12 @@ class Router {
     /**
      * Registers a callback on a certain GET route
      *
-     * $do_cache has no effect if caching isn't enabled on the router.
-     *
      * @param string $path
      * @param callable $callback
-     * @param bool $do_cache
      */
-    public function get ($path, $callback, $do_cache=true) {
+    public function get ($path, $callback) {
         $this->get_routes[] =
-            new Route(self::split_path($path), $callback, $do_cache);
+            new Route(self::split_path($path), $callback);
     }
 
     /**
@@ -953,11 +974,10 @@ class Router {
      *
      * @param string $path
      * @param callable $callback
-     * @param bool $do_cache
      */
     public function post ($path, callable $callback) {
         $this->post_routes[] =
-            new Route(self::split_path($path), $callback, false);
+            new Route(self::split_path($path), $callback);
     }
 
     /**
@@ -971,34 +991,17 @@ class Router {
 
             $response = $this->execute_matching_route();
 
-            if (is_string($response)) {
-                $response = new HTMLResponse($response);
-            } elseif (is_array($response)) {
-                $response = new JSONResponse($response);
-            }
+            // if $response is already a Response object,
+            // it will be returned untouched
+            $response = make_content_response($response);
 
-            // if caching is on generally AND switched on for the route,
-            // save the response to a file and write a new redirect rule
-            if (UNPLUG_CACHE && $this->do_cache) {
+            if (UNPLUG_CACHE && $response->is_cacheable()) {
 
                 // serialise path again
                 $path = join('/', $this->path);
 
-                if ($response instanceof CacheableContent) {
-
-                    // get response string and file extension
-                    $response_str = $response->get_payload();
-                    $extension = $response->get_extension();
-
-                    $this->cache->add($path, $response_str, $extension);
-
-                } elseif ($response instanceof CacheableRedirect) {
-
-                    $location = $response->get_location();
-                    $status = $response->get_status();
-
-                    $this->cache->add_redirect($path, $location, $status);
-                }
+                $cache = new Cache(UNPLUG_CACHE_DIR);
+                $cache->add($path, $response);
             }
 
             $response->send();
@@ -1007,7 +1010,6 @@ class Router {
 }
 
 /**
- * The most important export from this plugin.
  * Call unplug\unplug in your functions.php to
  * prevent WordPress from running its default
  * query and template selection thing.
