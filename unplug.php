@@ -712,12 +712,12 @@ class Cache {
         }
     }
 
-    public function add_regexp ($regexp, $response, $extension) {
+    public function add_regexp ($regexp, $response) {
 
         // get the relative path to the cache dir
         $rel_dir = $this->find_rel_dir();
 
-        $filename = $this->save($regexp, $response, $extension);
+        $filename = $this->save($regexp, $response);
         $file = $rel_dir . '/' . $filename;
 
         $rule = self::create_rule_regexp($regexp, $file);
