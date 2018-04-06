@@ -52,6 +52,17 @@ Author URI: http://unfun.de
 //   page generator with the comfortable/convenient API of a router!
 //   Best of both worlds?
 
+// TODO:
+// - move path matching from Router to Route class
+// - maybe make path matching more efficient by making it more lazy,
+//   like not splitting up all the paths when the routes are created,
+//   and rather only compare them when it's really necessary, and
+//   then probably with a super-efficient string-based imperative
+//   compare method that doesn't even need to split them into arrays?
+// - can other parts be made more efficient by making them more lazy
+//   (like only creating instances the moment they're really needed,)
+//   and then memoizing them, for example?)
+
 namespace unplug;
 
 // make sure UNPLUG_CACHE is defined,
