@@ -260,6 +260,294 @@ function found ($location='/') {
     return new RedirectResponse($location);
 }
 
+/**
+ * Gets the current url, but without protocol/host
+ * By Giuseppe Mazzapica @gmazzap as published on
+ * https://roots.io/routing-wp-requests/
+ *
+ * @returns String url
+ */
+function get_current_url () {
+
+    $current_url = trim(esc_url_raw(add_query_arg(array())), '/');
+    $home_path = trim(parse_url(home_url(), PHP_URL_PATH), '/');
+    if ($home_path && strpos($current_url, $home_path) === 0) {
+        $current_url = trim(substr($current_url, strlen($home_path)), '/');
+    }
+
+    return $current_url;
+}
+
+class Router {
+
+    /**
+     * Splits a path into segments, omitting empty strings
+     *
+     * @param string $path
+     *
+     * @returns array
+     */
+    protected static function split_path ($path) {
+        $path_segments = explode('/', $path);
+        $no_empty_str = array_filter($path_segments, function ($s) {
+            // compare to empty string explicitly,
+            // as e.g. a string with a single zero in it
+            // would also ne coerced to false
+            // (of course, PHP, what was I thinking!?)
+            return $s !== '';
+        });
+        // reset the array keys to 0..*
+        $numbered_path_segments = array_values($no_empty_str);
+        // path segments may have urlencoded special charactes
+        return array_map(function ($s) {
+            return urldecode($s);
+        }, $numbered_path_segments);
+    }
+
+    /**
+     * Returns a very basic 404 message to the client
+     *
+     * This should be avoided. Make sure you supply
+     * exhaustive routes.
+     */
+    protected static function last_error_callback () {
+        return not_found();
+    }
+
+    protected $cache;
+    protected $path;
+    protected $query;
+    protected $method;
+    protected $get_routes = array();
+    protected $post_routes = array();
+
+    /**
+     * Checks wether the path matches a route specification
+     *
+     * @param array $routeSpec
+     *
+     * @returns mixed
+     */
+    protected function path_matches_route (array $routeSpec) {
+
+        $params = array();
+        $PSSize = sizeof($this->path);
+        $RSSize = sizeof($routeSpec);
+
+        // match the index route
+        if ($PSSize === 0 and $RSSize === 0) {
+            return $params;
+        }
+
+        // match the catchall route
+        if ($RSSize > 0 and $routeSpec[0] === '*') {
+            return $params;
+        }
+
+        // fail if different number of path segments
+        if ($PSSize !== $RSSize) {
+            return FALSE;
+        }
+
+        // compare allpath segments
+        for ($i = 0; $i < $PSSize; $i++) {
+
+            // variable segment matches everything
+            if (substr($routeSpec[$i], 0, 1) === ':') {
+
+                // remove colon from parameter name
+                $param_name = trim($routeSpec[$i], ':');
+
+                // add a named parameter value
+                $params[$param_name] = $this->path[$i];
+
+            // normal segments have to match exactly
+            } else if ($this->path[$i] !== $routeSpec[$i]) {
+
+                // if they don’t, it’s a complete mismatch
+                return FALSE;
+            }
+        }
+
+        return $params;
+    }
+
+    /**
+     * Checks all routes for a match and executes callback
+     */
+    protected function execute_matching_route () {
+
+        if ($this->method === 'post') {
+            $routes = $this->post_routes;
+        } else {
+            $routes = $this->get_routes;
+        }
+
+        foreach ($routes as $route) {
+
+            $params = self::path_matches_route($route->path);
+            $is_match = is_array($params);
+
+            if ($is_match) {
+
+                // run the user-supplied callback function with the route
+                // params plus any query parameters in an object as arguments
+                return $route->callback(new Request(
+                  $this->path,
+                  $params,
+                  $this->query
+                ));
+            }
+        }
+
+        // in case the supplied routes aren’t exhaustive,
+        // and none matched, this is the last resort
+        return self::last_error_callback();
+    }
+
+    public function __construct () {
+
+        $current_url = get_current_url();
+        $url_parts = explode('?', $current_url, 2);
+
+        $url_path = self::split_path($url_parts[0]);
+
+        $url_vars = array();
+        if (isset($url_parts[1])) {
+            parse_str($url_parts[1], $url_vars);
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->method = 'post';
+        } else {
+            $this->method = 'get';
+        }
+
+        $this->path = $url_path;
+        $this->query = $url_vars;
+    }
+
+    /**
+     * Registers a callback on a certain GET route
+     *
+     * @param string $path
+     * @param callable $callback
+     */
+    public function get ($path, $callback) {
+        $this->get_routes[] =
+            new Route(self::split_path($path), $callback);
+    }
+
+    /**
+     * Registers a callback on a certain POST route
+     *
+     * post routes will never be cached.
+     *
+     * @param string $path
+     * @param callable $callback
+     */
+    public function post ($path, callable $callback) {
+        $this->post_routes[] =
+            new Route(self::split_path($path), $callback);
+    }
+
+    /**
+     * Checks all registered routes against method and path and executes callback
+     *
+     * Should be called after all routes have been registered
+     */
+    public function run () {
+
+        if (defined('UNPLUG_RUN') && UNPLUG_RUN) {
+
+            $response = $this->execute_matching_route();
+
+            // if $response is already a Response object,
+            // it will be returned untouched
+            $response = make_content_response($response);
+
+            if (UNPLUG_CACHE && $response->is_cacheable()) {
+
+                // serialise path again
+                $path = join('/', $this->path);
+
+                $cache = new Cache(UNPLUG_CACHE_DIR);
+                $cache->add($path, $response);
+            }
+
+            $response->send();
+        }
+    }
+}
+
+/**
+ * Call unplug\unplug in your functions.php to
+ * prevent WordPress from running its default
+ * query and template selection thing.
+ * Also switch on caching here.
+ *
+ * @param array options
+ */
+function unplug ($options=array()) {
+
+    // check if this is an admin-panel
+    // request, and if not, prevent wordpress from parsing
+    // the url and running a query based on it.
+    // ---
+    // if the path starts with admin or login,
+    // which are two convenient wordpress redirects, we don't
+    // want to prevent the parsing, either. Same goes for paths
+    // starting with wp-content so a '*'-route won't falsely
+    // catch uploads or static theme assets.
+    $path = parse_url(get_current_url(), PHP_URL_PATH);
+    $allowed = !preg_match('/^(admin|login|wp-content)/', $path);
+    $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
+
+    if ($allowed) {
+
+        define('UNPLUG_RUN', true);
+
+        add_action('do_parse_request', function ($do_parse, $wp) {
+            $wp->query_vars = array();
+            remove_action('template_redirect', 'redirect_canonical');
+            return FALSE;
+        }, 30, 2);
+
+    } else {
+
+        define('UNPLUG_RUN', false);
+    }
+
+    // if caching is on, make sure to empty the cache on
+    // save_post and set a few constants so the router
+    // knows whether we want to cache or not
+    if (UNPLUG_CACHE) {
+
+        if (isset($options['cache_dir'])) {
+
+            define('UNPLUG_CACHE_DIR', $options['cache_dir']);
+
+        } else {
+
+            define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
+        }
+
+        add_action('save_post', function () use ($options) {
+
+            // this function will only be called if caching
+            // is on, so it's safe to assume that
+            // UNPLUG_CACHE_DIR will be set
+            $cache = new Cache(UNPLUG_CACHE_DIR);
+            $cache->flush();
+
+            if (isset($options['on_save_post'])) {
+                $options['on_save_post']($cache);
+            }
+        });
+
+    }
+}
+
 class Cache {
 
     /**
@@ -786,293 +1074,5 @@ class Cache {
             $path = substr($path, 1);
         }
         return $path;
-    }
-}
-
-/**
- * Gets the current url, but without protocol/host
- * By Giuseppe Mazzapica @gmazzap as published on
- * https://roots.io/routing-wp-requests/
- *
- * @returns String url
- */
-function get_current_url () {
-
-    $current_url = trim(esc_url_raw(add_query_arg(array())), '/');
-    $home_path = trim(parse_url(home_url(), PHP_URL_PATH), '/');
-    if ($home_path && strpos($current_url, $home_path) === 0) {
-        $current_url = trim(substr($current_url, strlen($home_path)), '/');
-    }
-
-    return $current_url;
-}
-
-class Router {
-
-    /**
-     * Splits a path into segments, omitting empty strings
-     *
-     * @param string $path
-     *
-     * @returns array
-     */
-    protected static function split_path ($path) {
-        $path_segments = explode('/', $path);
-        $no_empty_str = array_filter($path_segments, function ($s) {
-            // compare to empty string explicitly,
-            // as e.g. a string with a single zero in it
-            // would also ne coerced to false
-            // (of course, PHP, what was I thinking!?)
-            return $s !== '';
-        });
-        // reset the array keys to 0..*
-        $numbered_path_segments = array_values($no_empty_str);
-        // path segments may have urlencoded special charactes
-        return array_map(function ($s) {
-            return urldecode($s);
-        }, $numbered_path_segments);
-    }
-
-    /**
-     * Returns a very basic 404 message to the client
-     *
-     * This should be avoided. Make sure you supply
-     * exhaustive routes.
-     */
-    protected static function last_error_callback () {
-        return not_found();
-    }
-
-    protected $cache;
-    protected $path;
-    protected $query;
-    protected $method;
-    protected $get_routes = array();
-    protected $post_routes = array();
-
-    /**
-     * Checks wether the path matches a route specification
-     *
-     * @param array $routeSpec
-     *
-     * @returns mixed
-     */
-    protected function path_matches_route (array $routeSpec) {
-
-        $params = array();
-        $PSSize = sizeof($this->path);
-        $RSSize = sizeof($routeSpec);
-
-        // match the index route
-        if ($PSSize === 0 and $RSSize === 0) {
-            return $params;
-        }
-
-        // match the catchall route
-        if ($RSSize > 0 and $routeSpec[0] === '*') {
-            return $params;
-        }
-
-        // fail if different number of path segments
-        if ($PSSize !== $RSSize) {
-            return FALSE;
-        }
-
-        // compare allpath segments
-        for ($i = 0; $i < $PSSize; $i++) {
-
-            // variable segment matches everything
-            if (substr($routeSpec[$i], 0, 1) === ':') {
-
-                // remove colon from parameter name
-                $param_name = trim($routeSpec[$i], ':');
-
-                // add a named parameter value
-                $params[$param_name] = $this->path[$i];
-
-            // normal segments have to match exactly
-            } else if ($this->path[$i] !== $routeSpec[$i]) {
-
-                // if they don’t, it’s a complete mismatch
-                return FALSE;
-            }
-        }
-
-        return $params;
-    }
-
-    /**
-     * Checks all routes for a match and executes callback
-     */
-    protected function execute_matching_route () {
-
-        if ($this->method === 'post') {
-            $routes = $this->post_routes;
-        } else {
-            $routes = $this->get_routes;
-        }
-
-        foreach ($routes as $route) {
-
-            $params = self::path_matches_route($route->path);
-            $is_match = is_array($params);
-
-            if ($is_match) {
-
-                // run the user-supplied callback function with the route
-                // params plus any query parameters in an object as arguments
-                return $route->callback(new Request(
-                  $this->path,
-                  $params,
-                  $this->query
-                ));
-            }
-        }
-
-        // in case the supplied routes aren’t exhaustive,
-        // and none matched, this is the last resort
-        return self::last_error_callback();
-    }
-
-    public function __construct () {
-
-        $current_url = get_current_url();
-        $url_parts = explode('?', $current_url, 2);
-
-        $url_path = self::split_path($url_parts[0]);
-
-        $url_vars = array();
-        if (isset($url_parts[1])) {
-            parse_str($url_parts[1], $url_vars);
-        }
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->method = 'post';
-        } else {
-            $this->method = 'get';
-        }
-
-        $this->path = $url_path;
-        $this->query = $url_vars;
-    }
-
-    /**
-     * Registers a callback on a certain GET route
-     *
-     * @param string $path
-     * @param callable $callback
-     */
-    public function get ($path, $callback) {
-        $this->get_routes[] =
-            new Route(self::split_path($path), $callback);
-    }
-
-    /**
-     * Registers a callback on a certain POST route
-     *
-     * post routes will never be cached.
-     *
-     * @param string $path
-     * @param callable $callback
-     */
-    public function post ($path, callable $callback) {
-        $this->post_routes[] =
-            new Route(self::split_path($path), $callback);
-    }
-
-    /**
-     * Checks all registered routes against method and path and executes callback
-     *
-     * Should be called after all routes have been registered
-     */
-    public function run () {
-
-        if (defined('UNPLUG_RUN') && UNPLUG_RUN) {
-
-            $response = $this->execute_matching_route();
-
-            // if $response is already a Response object,
-            // it will be returned untouched
-            $response = make_content_response($response);
-
-            if (UNPLUG_CACHE && $response->is_cacheable()) {
-
-                // serialise path again
-                $path = join('/', $this->path);
-
-                $cache = new Cache(UNPLUG_CACHE_DIR);
-                $cache->add($path, $response);
-            }
-
-            $response->send();
-        }
-    }
-}
-
-/**
- * Call unplug\unplug in your functions.php to
- * prevent WordPress from running its default
- * query and template selection thing.
- * Also switch on caching here.
- *
- * @param array options
- */
-function unplug ($options=array()) {
-
-    // check if this is an admin-panel
-    // request, and if not, prevent wordpress from parsing
-    // the url and running a query based on it.
-    // ---
-    // if the path starts with admin or login,
-    // which are two convenient wordpress redirects, we don't
-    // want to prevent the parsing, either. Same goes for paths
-    // starting with wp-content so a '*'-route won't falsely
-    // catch uploads or static theme assets.
-    $path = parse_url(get_current_url(), PHP_URL_PATH);
-    $allowed = !preg_match('/^(admin|login|wp-content)/', $path);
-    $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
-
-    if ($allowed) {
-
-        define('UNPLUG_RUN', true);
-
-        add_action('do_parse_request', function ($do_parse, $wp) {
-            $wp->query_vars = array();
-            remove_action('template_redirect', 'redirect_canonical');
-            return FALSE;
-        }, 30, 2);
-
-    } else {
-
-        define('UNPLUG_RUN', false);
-    }
-
-    // if caching is on, make sure to empty the cache on
-    // save_post and set a few constants so the router
-    // knows whether we want to cache or not
-    if (UNPLUG_CACHE) {
-
-        if (isset($options['cache_dir'])) {
-
-            define('UNPLUG_CACHE_DIR', $options['cache_dir']);
-
-        } else {
-
-            define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
-        }
-
-        add_action('save_post', function () use ($options) {
-
-            // this function will only be called if caching
-            // is on, so it's safe to assume that
-            // UNPLUG_CACHE_DIR will be set
-            $cache = new Cache(UNPLUG_CACHE_DIR);
-            $cache->flush();
-
-            if (isset($options['on_save_post'])) {
-                $options['on_save_post']($cache);
-            }
-        });
-
     }
 }
