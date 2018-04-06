@@ -52,9 +52,15 @@ Author URI: http://unfun.de
 //   page generator with the comfortable/convenient API of a router!
 //   Best of both worlds?
 
-namespace unplug;
+// TODO:
+// - don't use protected properties, it's just weird.
+//   supplant them with private props or just make everything public.
+// - unify all kinds of Responses under 1 interface,
+//   and give them a is_cacheable property.
+//   404s are not cacheable, but can have a html payload,
+//   and so on.
 
-include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+namespace unplug;
 
 // make sure UNPLUG_CACHE is defined,
 // so we don't have to check that everytime
@@ -95,92 +101,123 @@ class Request {
     }
 }
 
-class Response {
+interface CacheableContent {
 
-    protected $status;
+    public function get_payload ();
+    public function get_extension ();
+}
+
+interface CacheableRedirect {
+
+    public function get_location ();
+    public function get_status ();
+}
+
+class HTMLResponse implements CacheableContent {
+
     protected $body;
-    public $is_json;
 
-    public function status ($status = null) {
+    public function __construct ($body='', $status=200) {
 
-        if ($status === null) {
-            if (isset($this->status)) {
-                return $this->status;
-            }
-            return null;
-        }
-
-        if (is_int($status)) {
-            return $this->status = $status;
-        }
-
-        throw new \Exception('Status must be an integer!');
+        $this->body = $body;
+        $this->status = $status;
     }
 
-    public function body ($body = null) {
+    public function get_payload () {
 
-        if ($body === null) {
-            if (isset($this->body)) {
-                return $this->body;
-            }
-            return null;
-        }
-
-        if (is_string($body)) {
-            $this->is_json = false;
-            return $this->body = $body;
-        }
-
-        throw new \Exception('Response body must be a string!');
+        return $this->body;
     }
 
-    public function json ($json = null) {
+    public function get_extension () {
 
-        if ($json === null) {
-            if ($this->is_json && isset($this->body)) {
-                return $this->body;
-            }
-            return null;
-        }
-
-        if (is_array($json)) {
-            $this->is_json = true;
-            return $this->body = $json;
-        }
-
-        throw new \Exception('Response json must be an array!');
-    }
-
-    public function __construct ($body = '', $status = 200) {
-
-        $this->status($status);
-
-        if (is_string($body)) {
-            $this->body($body);
-        } else if (is_array($body)) {
-            $this->json($body);
-        } else {
-            throw new \Exception(
-                'Response body must be given as string or array!'
-            );
-        }
+        return 'html';
     }
 
     public function send () {
 
-        if (headers_sent()) {
-            throw new \Exception(
-                'Headers have been sent before Response#send()!'
-            );
-        }
-
         status_header($this->status);
+        echo $this->body;
+    }
+}
 
-        if ($this->is_json) {
-            wp_send_json($this->body);
-        } else {
-            echo $this->body;
+class JSONResponse implements CacheableContent {
+
+    protected $data;
+
+    public function __construct ($data=array()) {
+
+        $this->data = $data;
+    }
+
+    public function get_payload () {
+
+        return json_encode($this->data);
+    }
+
+    public function get_extension () {
+
+        return 'json';
+    }
+
+    public function send () {
+
+        status_header(200);
+        wp_send_json($this->data);
+    }
+}
+
+class AbstractRedirect implements CacheableRedirect {
+
+    private $location;
+    private $status;
+
+    private static function normalise_location ($location) {
+
+        if ($location[0] !== '/') {
+            $location = '/' . $location;
         }
+        if ($location[strlen($location) - 1] !== '/') {
+            $location .= '/';
+        }
+        return get_site_url() . $location;
+    }
+
+    public function __construct ($location='/') {
+
+        $this->location = self::normalise_location($location);
+    }
+
+    public function get_location () {
+
+        return $this->location;
+    }
+
+    public function get_status () {
+
+        return $this->status;
+    }
+
+    public function send () {
+
+        wp_redirect($this->get_location(), $this->get_status());
+    }
+}
+
+class PermanentRedirect extends AbstractRedirect {
+
+    private $status = '301';
+}
+
+class TemporaryRedirect extends AbstractRedirect {
+
+    private $status = '302';
+}
+
+class NotFoundResponse {
+
+    public function send () {
+
+        status_header(404);
     }
 }
 
@@ -289,6 +326,14 @@ class Cache {
         return $rule;
     }
 
+    private static function create_rule_redirect ($path, $location, $status) {
+
+        $rule = array();
+        $rule[] = 'RewriteRule ^' . preg_quote($path) . '/?$ '
+                . $location . ' [R=' . $status . ']';
+        return $rule;
+    }
+
     private $dir;
     private $htaccess;
     private $htaccess_path;
@@ -341,6 +386,21 @@ class Cache {
         $file = $rel_dir . '/' . $filename;
 
         $rule = self::create_rule_regexp($regexp, $file);
+
+        if (!$this->rule_exists($rule)) {
+
+            $this->insert_rule($rule);
+            $this->write_htaccess();
+        }
+    }
+
+    /**
+     * Add a redirect rule to the .htaccess, without saving
+     * anything to a file or so.
+     */
+    public function add_redirect ($path, $location, $status) {
+
+        $rule = self::create_rule_redirect($path, $location, $status);
 
         if (!$this->rule_exists($rule)) {
 
@@ -748,7 +808,7 @@ class Router {
      * exhaustive routes.
      */
     protected static function last_error_callback () {
-        return new Response('404 - Page not found', 404);
+        return new NotFoundResponse();
     }
 
     protected $cache;
@@ -911,8 +971,10 @@ class Router {
 
             $response = $this->execute_matching_route();
 
-            if (is_string($response) || is_array($response)) {
-                $response = new Response($response);
+            if (is_string($response)) {
+                $response = new HTMLResponse($response);
+            } elseif (is_array($response)) {
+                $response = new JSONResponse($response);
             }
 
             // if caching is on generally AND switched on for the route,
@@ -922,16 +984,21 @@ class Router {
                 // serialise path again
                 $path = join('/', $this->path);
 
-                // get response string and file extension
-                if ($response->is_json) {
-                    $response_str = json_encode($response->json());
-                    $extension = 'json';
-                } else {
-                    $response_str = $response->body();
-                    $extension = 'html';
-                }
+                if ($response instanceof CacheableContent) {
 
-                $this->cache->add($path, $response_str, $extension);
+                    // get response string and file extension
+                    $response_str = $response->get_payload();
+                    $extension = $response->get_extension();
+
+                    $this->cache->add($path, $response_str, $extension);
+
+                } elseif ($response instanceof CacheableRedirect) {
+
+                    $location = $response->get_location();
+                    $status = $response->get_status();
+
+                    $this->cache->add_redirect($path, $location, $status);
+                }
             }
 
             $response->send();
@@ -992,7 +1059,7 @@ function unplug ($options=array()) {
             define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
         }
 
-        $after_save_post = function () use ($options) {
+        add_action('save_post', function () use ($options) {
 
             // this function will only be called if caching
             // is on, so it's safe to assume that
@@ -1003,14 +1070,7 @@ function unplug ($options=array()) {
             if (isset($options['on_save_post'])) {
                 $options['on_save_post']($cache);
             }
-        };
+        });
 
-        add_action('save_post', $after_save_post, 20);
-
-        $is_acf_active = is_plugin_active('advanced-custom-fields/acf.php');
-        $is_acf_pro_active = is_plugin_active('advanced-custom-fields-pro/acf.php');
-        if ($is_acf_active || $is_acf_pro_active) {
-            add_action('acf/save_post', $after_save_post, 20);
-        }
     }
 }
