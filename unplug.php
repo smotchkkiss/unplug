@@ -134,20 +134,16 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
 
     protected $body;
 
-    public function __construct ($body='', $is_ok=true) {
+    public function __construct ($body, $_is_cacheable, $status) {
 
         $this->body = $body;
-
-        if ($is_ok) {
-            $this->status = '200';
-        } else {
-            $this->status = '404';
-        }
+        $this->_is_cacheable = $_is_cacheable;
+        $this->status = $status;
     }
 
     public function is_cacheable () {
 
-        return $this->status === '200';
+        return $this->_is_cacheable;
     }
 
     public function get_status () {
@@ -194,18 +190,24 @@ class JSONResponse extends ContentResponse {
     }
 }
 
-function make_content_response ($response, $found=true) {
+function make_content_response ($response, $is_cacheable=true, $found=true) {
+
+    if ($found) {
+        $status = '200';
+    } else {
+        $status = '404';
+    }
 
     if ($response instanceof Response) {
         return $response;
     }
     if (is_string($response)) {
-        return new HTMLResponse($response, $found);
+        return new HTMLResponse($response, $is_cacheable, $status);
     }
     if (is_array($response)) {
-        return new JSONResponse($response, $found);
+        return new JSONResponse($response, $is_cacheable, $status);
     }
-    return new HTMLResponse('', false);
+    return new HTMLResponse('', false, '404');
 }
 
 class RedirectResponse extends Response implements RedirectResponseMethods {
@@ -255,19 +257,19 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
  * Convenience functions for use in routes
  */
 
-function ok ($response='') {
-    return make_content_response($response);
+function ok ($response='', $is_cacheable=true) {
+    return make_content_response($response, $is_cacheable);
 }
 
-function not_found ($response='') {
-    return make_content_response($response, false);
+function not_found ($response='', $is_cacheable=false) {
+    return make_content_response($response, $is_cacheable, false);
 }
 
-function moved_permanently ($location='/') {
+function moved_permanently ($location='/', $is_cacheable=true) {
     return new RedirectResponse($location);
 }
 
-function found ($location='/') {
+function found ($location='/', $is_cacheable=true) {
     return new RedirectResponse($location);
 }
 
