@@ -916,7 +916,7 @@ class Cache {
         $filename = $hash . '.' . $response->get_extension();
         $file = $this->dir . '/' . $filename;
 
-        $success = file_put_contents($file, $response);
+        $success = file_put_contents($file, $response->get_body());
 
         if ($success === false) {
             throw new \Exception('Failed to write ' . $file);
