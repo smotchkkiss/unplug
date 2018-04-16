@@ -545,7 +545,7 @@ function unplug ($options=array()) {
             define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
         }
 
-        add_action('save_post', function () use ($options) {
+        $after_save_post = function () use ($options) {
 
             // this function will only be called if caching
             // is on, so it's safe to assume that
@@ -556,8 +556,15 @@ function unplug ($options=array()) {
             if (isset($options['on_save_post'])) {
                 $options['on_save_post']($cache);
             }
-        });
+        };
 
+        add_action('save_post', $after_save_post, 20);
+
+        $is_acf_active = is_plugin_active('advanced-custom-fields/acf.php');
+        $is_acf_pro_active = is_plugin_active('advanced-custom-fields-pro/acf.php');
+        if ($is_acf_active || $is_acf_pro_active) {
+            add_action('acf/save_post', $after_save_post, 20);
+        }
     }
 }
 
