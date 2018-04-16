@@ -65,6 +65,8 @@ Author URI: http://unfun.de
 
 namespace unplug;
 
+include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+
 // make sure UNPLUG_CACHE is defined,
 // so we don't have to check that everytime
 if (!defined('UNPLUG_CACHE')) {
