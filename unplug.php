@@ -521,8 +521,6 @@ function unplug ($options=array()) {
     $path = parse_url(get_current_url(), PHP_URL_PATH);
     $allowed = !preg_match('/^(admin|login|wp-content)/', $path);
     $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
-    $excluded_files = array('sitemap.xml', 'robots.txt', 'humans.txt');
-    $allowed = $allowed && !in_array($path, $excluded_files);
 
     if ($allowed) {
 
