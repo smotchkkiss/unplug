@@ -191,7 +191,7 @@ class JSONResponse extends ContentResponse {
 
     public function send () {
 
-        status_header(200);
+        status_header($this->status);
         wp_send_json($this->body);
     }
 }
