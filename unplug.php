@@ -196,6 +196,30 @@ class JSONResponse extends ContentResponse {
     }
 }
 
+// TODO we need a way to trigger this, manually returning new
+// unplug\XMLResponses is not very convenient. HTML and JSON are
+// distinguished by the type of the data given. can we detect
+// if a string is HTML or XML somehow?!
+class XMLResponse extends ContentResponse {
+
+    public function get_extension () {
+
+        return 'xml';
+    }
+
+    public function get_body () {
+
+        return $this->body;
+    }
+
+    public function send () {
+
+        status_header($this->status);
+        header('Content-Type: text/xml');
+        echo $this->body;
+    }
+}
+
 function make_content_response ($response, $is_cacheable=true, $found=true) {
 
     if ($found) {
