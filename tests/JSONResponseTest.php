@@ -22,52 +22,67 @@ if (!function_exists('status_header')) {
     }
 }
 
+// mock the wp_send_json function
+if (!function_exists('wp_send_json')) {
+    $wp_send_json_calls = [];
+    function wp_send_json(array $data) {
+        global $wp_send_json_calls;
+        $wp_send_json_calls[] = json_encode($data);
+    }
+}
+
 // request is just a "data class"
-final class HTMLResponseTest extends TestCase {
+final class JSONResponseTest extends TestCase {
 
     public function testImplementsAllRequiredMethods() {
         global $status_header_calls;
+        global $wp_send_json_calls;
 
         $status_header_calls = [];
+        $wp_send_json_calls = [];
 
-        $response = new unplug\HTMLResponse('body payload', false, '404');
+        $response = new unplug\JSONResponse(['body' => 'payload'], true, '403');
 
         // ResponseMethods
-        $this->assertFalse($response->is_cacheable());
-        $this->assertSame($response->get_status(), '404');
+        $this->assertTrue($response->is_cacheable());
+        $this->assertSame($response->get_status(), '403');
         $this->assertSame(sizeof($status_header_calls), 0);
+        $this->assertSame(sizeof($wp_send_json_calls), 0);
         ob_start();
         $response->send();
         $result = ob_get_clean();
-        $this->assertSame($result, 'body payload');
+        $this->assertSame(
+            $wp_send_json_calls[0],
+            json_encode(['body' => 'payload'])
+        );
         $this->assertSame(sizeof($status_header_calls), 1);
-        $this->assertSame($status_header_calls[0], '404');
+        $this->assertSame($status_header_calls[0], '403');
 
         // ContentResponseMethods
-        $this->assertSame($response->get_extension(), 'html');
-        $this->assertSame($response->get_body(), 'body payload');
+        $this->assertSame($response->get_extension(), 'json');
+        $this->assertSame($response->get_body(), '{"body":"payload"}');
     }
 
-    public function testRequireStringBody() {
+    public function testRequireArrayBody() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage(
             'Response body must be a string or an array'
         );
-        new unplug\HTMLResponse(null, true, '200');
+        new unplug\JSONResponse(null, true, '200');
     }
 
     public function testRequireCacheableBoolean() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Response _is_cacheable must be a boolean');
-        new unplug\HTMLResponse('', null, '200');
+        new unplug\JSONResponse('', null, '200');
     }
 
     public function testRequireStatusString() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Response status must be a string');
-        new unplug\HTMLResponse('', true, null);
+        new unplug\JSONResponse('', true, null);
     }
 }
