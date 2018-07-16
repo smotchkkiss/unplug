@@ -142,6 +142,16 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
 
     public function __construct ($body, $_is_cacheable, $status) {
 
+        if (gettype($body) !== 'string') {
+            throw new \Exception('Response body must be a string');
+        }
+        if (gettype($_is_cacheable) !== 'boolean') {
+            throw new \Exception('Response _is_cacheable must be a boolean');
+        }
+        if (gettype($status) !== 'string') {
+            throw new \Exception('Response status must be a string');
+        }
+
         $this->body = $body;
         $this->_is_cacheable = $_is_cacheable;
         $this->status = $status;
@@ -150,11 +160,6 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
     public function is_cacheable () {
 
         return $this->_is_cacheable;
-    }
-
-    public function get_status () {
-
-        return $this->status;
     }
 }
 
