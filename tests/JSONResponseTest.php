@@ -13,33 +13,21 @@ include_once(dirname(__DIR__) . '/unplug.php');
 
 use PHPUnit\Framework\TestCase;
 
-// mock the status_header function
-if (!function_exists('status_header')) {
-    $status_header_calls = [];
-    function status_header(string $status) {
-        global $status_header_calls;
-        $status_header_calls[] = $status;
-    }
-}
-
-// mock the wp_send_json function
-if (!function_exists('wp_send_json')) {
-    $wp_send_json_calls = [];
-    function wp_send_json(array $data) {
-        global $wp_send_json_calls;
-        $wp_send_json_calls[] = json_encode($data);
-    }
-}
-
-// request is just a "data class"
 final class JSONResponseTest extends TestCase {
 
     public function testImplementsAllRequiredMethods() {
-        global $status_header_calls;
-        global $wp_send_json_calls;
 
+        // mock the status_header and wp_send_json functions
         $status_header_calls = [];
         $wp_send_json_calls = [];
+        $global_functions = new unplug\GlobalFunctions([
+            'status_header' => function($status) use (&$status_header_calls) {
+                $status_header_calls[] = $status;
+            },
+            'wp_send_json' => function(array $data) use (&$wp_send_json_calls) {
+                $wp_send_json_calls[] = json_encode($data);
+            },
+        ]);
 
         $response = new unplug\JSONResponse(['body' => 'payload'], true, '403');
 
@@ -49,7 +37,7 @@ final class JSONResponseTest extends TestCase {
         $this->assertSame(sizeof($status_header_calls), 0);
         $this->assertSame(sizeof($wp_send_json_calls), 0);
         ob_start();
-        $response->send();
+        $response->send($global_functions);
         $result = ob_get_clean();
         $this->assertSame(
             $wp_send_json_calls[0],

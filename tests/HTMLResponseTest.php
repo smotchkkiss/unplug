@@ -13,22 +13,17 @@ include_once(dirname(__DIR__) . '/unplug.php');
 
 use PHPUnit\Framework\TestCase;
 
-// mock the status_header function
-if (!function_exists('status_header')) {
-    $status_header_calls = [];
-    function status_header(string $status) {
-        global $status_header_calls;
-        $status_header_calls[] = $status;
-    }
-}
-
-// request is just a "data class"
 final class HTMLResponseTest extends TestCase {
 
     public function testImplementsAllRequiredMethods() {
-        global $status_header_calls;
 
+        // mock the status_header function
         $status_header_calls = [];
+        $global_functions = new unplug\GlobalFunctions([
+            'status_header' => function($status) use (&$status_header_calls) {
+                $status_header_calls[] = $status;
+            },
+        ]);
 
         $response = new unplug\HTMLResponse('body payload', false, '404');
 
@@ -37,7 +32,7 @@ final class HTMLResponseTest extends TestCase {
         $this->assertSame($response->get_status(), '404');
         $this->assertSame(sizeof($status_header_calls), 0);
         ob_start();
-        $response->send();
+        $response->send($global_functions);
         $result = ob_get_clean();
         $this->assertSame($result, 'body payload');
         $this->assertSame(sizeof($status_header_calls), 1);

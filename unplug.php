@@ -77,6 +77,45 @@ if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', false);
 }
 
+// dependency injection mechanism for the send methods of the
+// various response classes
+class GlobalFunctions {
+
+    private $functions;
+
+    public function __construct($functions=null) {
+        if ($functions) {
+            $this->functions = $functions;
+        } else {
+            $this->functions = [
+                'status_header' => function($status) {
+                    return status_header($status);
+                },
+                'header' => function($header) {
+                    return header($header);
+                },
+                'wp_send_json' => function(array $data) {
+                    return wp_send_json($data);
+                },
+                'wp_redirect' => function($location, $status) {
+                    return wp_redirect($location, $status);
+                },
+            ];
+        }
+    }
+
+    public function __call($function_name, $args) {
+        if (is_callable($this->functions[$function_name])) {
+            return call_user_func_array(
+                $this->functions[$function_name],
+                $args
+            );
+        } else {
+            throw new \Exception($function_name . ' is not in GlobalFunctions');
+        }
+    }
+}
+
 class Route {
 
     public $path;
@@ -112,7 +151,7 @@ interface ResponseMethods {
 
     public function is_cacheable ();
     public function get_status ();
-    public function send ();
+    public function send (GlobalFunctions $functions);
 }
 
 interface ContentResponseMethods {
@@ -176,9 +215,9 @@ class HTMLResponse extends ContentResponse {
         return $this->body;
     }
 
-    public function send () {
+    public function send (GlobalFunctions $functions) {
 
-        status_header($this->status);
+        $functions->status_header($this->status);
         echo $this->body;
     }
 }
@@ -195,10 +234,10 @@ class JSONResponse extends ContentResponse {
         return json_encode($this->body);
     }
 
-    public function send () {
+    public function send (GlobalFunctions $functions) {
 
-        status_header($this->status);
-        wp_send_json($this->body);
+        $functions->status_header($this->status);
+        $functions->wp_send_json($this->body);
     }
 }
 
@@ -218,10 +257,10 @@ class XMLResponse extends ContentResponse {
         return $this->body;
     }
 
-    public function send () {
+    public function send (GlobalFunctions $functions) {
 
-        status_header($this->status);
-        header('Content-Type: text/xml');
+        $functions->status_header($this->status);
+        $functions->header('Content-Type: text/xml');
         echo $this->body;
     }
 }
@@ -283,9 +322,9 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
         return $this->location;
     }
 
-    public function send () {
+    public function send (GlobalFunctions $functions) {
 
-        wp_redirect($this->get_location(), $this->get_status());
+        $functions->wp_redirect($this->get_location(), $this->get_status());
     }
 }
 
@@ -524,7 +563,7 @@ class Router {
                 $cache->add($path, $response);
             }
 
-            $response->send();
+            $response->send(new GlobalFunctions);
         }
     }
 }
