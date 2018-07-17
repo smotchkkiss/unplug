@@ -256,7 +256,7 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
 
     public function __construct ($location, $is_permanent=true) {
 
-        $this->location = $this->normalise_location($location);
+        $this->location = self::normalise_location($location);
 
         if ($is_permanent) {
             $this->status = '301';
@@ -265,7 +265,7 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
         }
     }
 
-    protected function normalise_location ($location) {
+    protected static function normalise_location ($location) {
 
         if ($location[0] !== '/') {
             $location = '/' . $location;
