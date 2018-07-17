@@ -1,5 +1,7 @@
 <?php
 
+namespace unplug;
+
 // unplug is meant to be used inside a WordPress theme, therefore
 // it expects ABSPATH to be defined (and set to the WordPress
 // base directory). We're setting it to a 'mock' folder inside the
@@ -11,28 +13,31 @@ if (!defined('ABSPATH')) {
 
 include_once(dirname(__DIR__) . '/unplug.php');
 
+// mock the status_header function
+if (!function_exists('unplug\status_header')) {
+    $status_header_calls = [];
+    function status_header(string $status) {
+        global $status_header_calls;
+        $status_header_calls[] = $status;
+    }
+ }
+
 use PHPUnit\Framework\TestCase;
 
 final class HTMLResponseTest extends TestCase {
 
     public function testImplementsAllRequiredMethods() {
-
-        // mock the status_header function
+        global $status_header_calls;
         $status_header_calls = [];
-        $global_functions = new unplug\GlobalFunctions([
-            'status_header' => function($status) use (&$status_header_calls) {
-                $status_header_calls[] = $status;
-            },
-        ]);
 
-        $response = new unplug\HTMLResponse('body payload', false, '404');
+        $response = new HTMLResponse('body payload', false, '404');
 
         // ResponseMethods
         $this->assertFalse($response->is_cacheable());
         $this->assertSame($response->get_status(), '404');
         $this->assertSame(sizeof($status_header_calls), 0);
         ob_start();
-        $response->send($global_functions);
+        $response->send();
         $result = ob_get_clean();
         $this->assertSame($result, 'body payload');
         $this->assertSame(sizeof($status_header_calls), 1);
@@ -49,20 +54,20 @@ final class HTMLResponseTest extends TestCase {
         $this->expectExceptionMessage(
             'Response body must be a string or an array'
         );
-        new unplug\HTMLResponse(null, true, '200');
+        new HTMLResponse(null, true, '200');
     }
 
     public function testRequireCacheableBoolean() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Response _is_cacheable must be a boolean');
-        new unplug\HTMLResponse('', null, '200');
+        new HTMLResponse('', null, '200');
     }
 
     public function testRequireStatusString() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Response status must be a string');
-        new unplug\HTMLResponse('', true, null);
+        new HTMLResponse('', true, null);
     }
 }

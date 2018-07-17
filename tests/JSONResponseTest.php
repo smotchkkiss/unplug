@@ -1,5 +1,8 @@
 <?php
 
+// necessary to be ably to mock PHP globals
+namespace unplug;
+
 // unplug is meant to be used inside a WordPress theme, therefore
 // it expects ABSPATH to be defined (and set to the WordPress
 // base directory). We're setting it to a 'mock' folder inside the
@@ -11,25 +14,33 @@ if (!defined('ABSPATH')) {
 
 include_once(dirname(__DIR__) . '/unplug.php');
 
+// mock status_header and wp_send_json functions
+if (!function_exists('unplug\status_header')) {
+    $status_header_calls = [];
+    function status_header(string $status) {
+        global $status_header_calls;
+        $status_header_calls[] = $status;
+    }
+ }
+if (!function_exists('unplug\wp_send_json')) {
+    $wp_send_json_calls = [];
+    function wp_send_json(array $data) {
+        global $wp_send_json_calls;
+        $wp_send_json_calls[] = json_encode($data);
+    }
+ }
+
 use PHPUnit\Framework\TestCase;
 
 final class JSONResponseTest extends TestCase {
 
     public function testImplementsAllRequiredMethods() {
-
-        // mock the status_header and wp_send_json functions
+        global $status_header_calls;
+        global $wp_send_json_calls;
         $status_header_calls = [];
         $wp_send_json_calls = [];
-        $global_functions = new unplug\GlobalFunctions([
-            'status_header' => function($status) use (&$status_header_calls) {
-                $status_header_calls[] = $status;
-            },
-            'wp_send_json' => function(array $data) use (&$wp_send_json_calls) {
-                $wp_send_json_calls[] = json_encode($data);
-            },
-        ]);
 
-        $response = new unplug\JSONResponse(['body' => 'payload'], true, '403');
+        $response = new JSONResponse(['body' => 'payload'], true, '403');
 
         // ResponseMethods
         $this->assertTrue($response->is_cacheable());
@@ -37,7 +48,7 @@ final class JSONResponseTest extends TestCase {
         $this->assertSame(sizeof($status_header_calls), 0);
         $this->assertSame(sizeof($wp_send_json_calls), 0);
         ob_start();
-        $response->send($global_functions);
+        $response->send();
         $result = ob_get_clean();
         $this->assertSame(
             $wp_send_json_calls[0],
@@ -57,20 +68,20 @@ final class JSONResponseTest extends TestCase {
         $this->expectExceptionMessage(
             'Response body must be a string or an array'
         );
-        new unplug\JSONResponse(null, true, '200');
+        new JSONResponse(null, true, '200');
     }
 
     public function testRequireCacheableBoolean() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Response _is_cacheable must be a boolean');
-        new unplug\JSONResponse('', null, '200');
+        new JSONResponse('', null, '200');
     }
 
     public function testRequireStatusString() {
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Response status must be a string');
-        new unplug\JSONResponse('', true, null);
+        new JSONResponse('', true, null);
     }
 }

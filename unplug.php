@@ -77,51 +77,6 @@ if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', false);
 }
 
-// dependency injection mechanism for the send methods of the
-// various response classes
-class GlobalFunctions {
-
-    private $functions;
-
-    public function __construct($functions=null) {
-        if ($functions) {
-            $this->functions = $functions;
-        } else {
-            $this->functions = [
-                'status_header' => function($status) {
-                    return status_header($status);
-                },
-                'header' => function($header) {
-                    return header($header);
-                },
-                'wp_send_json' => function(array $data) {
-                    return wp_send_json($data);
-                },
-                'wp_redirect' => function($location, $status) {
-                    return wp_redirect($location, $status);
-                },
-                'get_site_url' => function() {
-                    return get_site_url();
-                },
-            ];
-        }
-    }
-
-    public function __call($function_name, $args) {
-        if (is_callable($this->functions[$function_name])) {
-            return call_user_func_array(
-                $this->functions[$function_name],
-                $args
-            );
-        } else {
-            throw new \Exception($function_name . ' is not in GlobalFunctions');
-        }
-    }
-}
-
-// a global instance for all to use
-$functions = new GlobalFunctions();
-
 class Route {
 
     public $path;
@@ -157,7 +112,7 @@ interface ResponseMethods {
 
     public function is_cacheable ();
     public function get_status ();
-    public function send (GlobalFunctions $functions);
+    public function send ();
 }
 
 interface ContentResponseMethods {
@@ -220,9 +175,9 @@ class HTMLResponse extends ContentResponse {
         return $this->body;
     }
 
-    public function send (GlobalFunctions $functions) {
+    public function send () {
 
-        $functions->status_header($this->status);
+        status_header($this->status);
         echo $this->body;
     }
 }
@@ -239,10 +194,10 @@ class JSONResponse extends ContentResponse {
         return json_encode($this->body);
     }
 
-    public function send (GlobalFunctions $functions) {
+    public function send () {
 
-        $functions->status_header($this->status);
-        $functions->wp_send_json($this->body);
+        status_header($this->status);
+        wp_send_json($this->body);
     }
 }
 
@@ -262,10 +217,10 @@ class XMLResponse extends ContentResponse {
         return $this->body;
     }
 
-    public function send (GlobalFunctions $functions) {
+    public function send () {
 
-        $functions->status_header($this->status);
-        $functions->header('Content-Type: text/xml');
+        status_header($this->status);
+        header('Content-Type: text/xml');
         echo $this->body;
     }
 }
@@ -298,11 +253,8 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
 
     protected $location;
     protected $status;
-    protected $functions;
 
-    public function __construct ($location, $is_permanent, $functions) {
-
-        $this->functions = $functions;
+    public function __construct ($location, $is_permanent=true) {
 
         $this->location = $this->normalise_location($location);
 
@@ -321,7 +273,7 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
         if ($location[strlen($location) - 1] !== '/') {
             $location .= '/';
         }
-        return $this->functions->get_site_url() . $location;
+        return get_site_url() . $location;
     }
 
     public function is_cacheable () {
@@ -334,13 +286,9 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
         return $this->location;
     }
 
-    // TODO dependencies were already injected in __construct!
-    public function send (GlobalFunctions $functions) {
+    public function send () {
 
-        $functions->wp_redirect(
-            $this->get_location(),
-            $this->get_status()
-        );
+        wp_redirect($this->get_location(), $this->get_status());
     }
 }
 
@@ -357,13 +305,11 @@ function not_found ($response='', $is_cacheable=false) {
 }
 
 function moved_permanently ($location='/', $is_cacheable=true) {
-    global $functions;
-    return new RedirectResponse($location, false, $functions);
+    return new RedirectResponse($location, false);
 }
 
 function found ($location='/', $is_cacheable=true) {
-    global $functions;
-    return new RedirectResponse($location, false, $functions);
+    return new RedirectResponse($location, false);
 }
 
 /**
@@ -564,8 +510,6 @@ class Router {
      */
     public function run () {
 
-        global $functions;
-
         if (defined('UNPLUG_RUN') && UNPLUG_RUN) {
 
             $response = $this->execute_matching_route();
@@ -583,7 +527,7 @@ class Router {
                 $cache->add($path, $response);
             }
 
-            $response->send($functions);
+            $response->send();
         }
     }
 }

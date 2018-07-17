@@ -1,5 +1,8 @@
 <?php
 
+// necessary for mocking
+namespace unplug;
+
 // unplug is meant to be used inside a WordPress theme, therefore
 // it expects ABSPATH to be defined (and set to the WordPress
 // base directory). We're setting it to a 'mock' folder inside the
@@ -9,6 +12,26 @@ if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/mock/');
 }
 
+// mock get_site_url and wp_redirect functions
+if (!function_exists('unplug\get_site_url')) {
+    $get_site_url_calls = 0;
+    function get_site_url() {
+        global $get_site_url_calls;
+        $get_site_url_calls++;
+        return 'https://example.com';
+    }
+}
+if (!function_exists('unplug\wp_redirect')) {
+    $wp_redirect_calls = [];
+    function wp_redirect($location, $status) {
+        global $wp_redirect_calls;
+        $wp_redirect_calls[] = [
+            'location' => $location,
+            'status' => $status,
+        ];
+    }
+}
+
 include_once(dirname(__DIR__) . '/unplug.php');
 
 use PHPUnit\Framework\TestCase;
@@ -16,23 +39,19 @@ use PHPUnit\Framework\TestCase;
 final class RedirectResponseTest extends TestCase {
 
     public function testLocationIsFullyQualifiedURL() {
+        global $get_site_url_calls;
         $get_site_url_calls = 0;
-        $functions = new unplug\GlobalFunctions([
-            'get_site_url' => function() use(&$get_site_url_calls) {
-                $get_site_url_calls++;
-                return 'https://example.com';
-            },
-        ]);
+
         $this->assertSame($get_site_url_calls, 0);
-        $res = new unplug\RedirectResponse('/', true, $functions);
+        $res = new RedirectResponse('/');
         $this->assertSame($get_site_url_calls, 1);
         $this->assertSame($res->get_location(), 'https://example.com/');
         $this->assertSame($get_site_url_calls, 1);
-        $res = new unplug\RedirectResponse('/test', true, $functions);
+        $res = new RedirectResponse('/test');
         $this->assertSame($get_site_url_calls, 2);
         $this->assertSame($res->get_location(), 'https://example.com/test/');
         $this->assertSame($get_site_url_calls, 2);
-        $res = new unplug\RedirectResponse('/wurm/senf', true, $functions);
+        $res = new RedirectResponse('/wurm/senf');
         $this->assertSame($get_site_url_calls, 3);
         $this->assertSame(
             $res->get_location(),
@@ -42,53 +61,40 @@ final class RedirectResponseTest extends TestCase {
     }
 
     public function testIsAlwaysCacheable() {
-        $functions = new unplug\GlobalFunctions([
-            'get_site_url' => function() {
-                return '';
-            },
-        ]);
-        $res = new unplug\RedirectResponse('/', true, $functions);
+        $res = new RedirectResponse('/', true);
         $this->assertSame($res->is_cacheable(), true);
-        $res = new unplug\RedirectResponse('/', false, $functions);
+        $res = new RedirectResponse('/', false);
         $this->assertSame($res->is_cacheable(), true);
     }
 
     public function testRedirectResponseMethods() {
-        $functions = new unplug\GlobalFunctions([
-            'get_site_url' => function() {
-                return '';
-            },
-        ]);
-        $res = new unplug\RedirectResponse('/', true, $functions);
+        $res = new RedirectResponse('/');
         $this->assertSame($res->is_cacheable(), true);
-        $this->assertSame($res->get_location(), '/');
+        $this->assertSame($res->get_location(), 'https://example.com/');
     }
 
     public function testSendMethodAndStatus() {
+        global $wp_redirect_calls;
         $wp_redirect_calls = [];
-        $functions = new unplug\GlobalFunctions([
-            'get_site_url' => function() {
-                return '';
-            },
-            'wp_redirect' => function($location, $status)
-                use(&$wp_redirect_calls) {
-                    $wp_redirect_calls[] = [
-                        'location' => $location,
-                        'status' => $status,
-                    ];
-            },
-        ]);
-        $res = new unplug\RedirectResponse('/', true, $functions);
+
+        $res = new RedirectResponse('/', true);
         $this->assertSame(sizeof($wp_redirect_calls), 0);
-        $res->send($functions);
+        $res->send();
         $this->assertSame(sizeof($wp_redirect_calls), 1);
-        $this->assertSame($wp_redirect_calls[0]['location'], '/');
+        $this->assertSame(
+            $wp_redirect_calls[0]['location'],
+            'https://example.com/'
+        );
         $this->assertSame($wp_redirect_calls[0]['status'], '301');
-        $res = new unplug\RedirectResponse('/test', false, $functions);
+
+        $res = new RedirectResponse('/test', false);
         $this->assertSame(sizeof($wp_redirect_calls), 1);
-        $res->send($functions);
+        $res->send();
         $this->assertSame(sizeof($wp_redirect_calls), 2);
-        $this->assertSame($wp_redirect_calls[1]['location'], '/test/');
+        $this->assertSame(
+            $wp_redirect_calls[1]['location'],
+            'https://example.com/test/'
+        );
         $this->assertSame($wp_redirect_calls[1]['status'], '302');
     }
 }
