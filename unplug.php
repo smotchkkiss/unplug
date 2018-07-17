@@ -305,7 +305,7 @@ function not_found ($response='', $is_cacheable=false) {
 }
 
 function moved_permanently ($location='/', $is_cacheable=true) {
-    return new RedirectResponse($location, false);
+    return new RedirectResponse($location);
 }
 
 function found ($location='/', $is_cacheable=true) {
