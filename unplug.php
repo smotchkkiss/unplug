@@ -181,14 +181,13 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
 
     public function __construct ($body, $_is_cacheable, $status) {
 
-        $bodytype = gettype($body);
-        if ($bodytype !== 'string' && $bodytype !== 'array') {
+        if (!is_string($body) && !is_array($body)) {
             throw new \Exception('Response body must be a string or an array');
         }
-        if (gettype($_is_cacheable) !== 'boolean') {
+        if (!is_bool($_is_cacheable)) {
             throw new \Exception('Response _is_cacheable must be a boolean');
         }
-        if (gettype($status) !== 'string') {
+        if (!is_string($status)) {
             throw new \Exception('Response status must be a string');
         }
 
