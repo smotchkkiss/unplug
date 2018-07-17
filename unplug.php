@@ -267,6 +267,10 @@ class XMLResponse extends ContentResponse {
 
 function make_content_response ($response, $is_cacheable=true, $found=true) {
 
+    if (!is_bool($found)) {
+        throw new \Exception('$found must be boolean');
+    }
+
     if ($found) {
         $status = '200';
     } else {
@@ -282,7 +286,7 @@ function make_content_response ($response, $is_cacheable=true, $found=true) {
     if (is_array($response)) {
         return new JSONResponse($response, $is_cacheable, $status);
     }
-    return new HTMLResponse('', false, '404');
+    throw new \Exception('$response must be string, array or Response');
 }
 
 class RedirectResponse extends Response implements RedirectResponseMethods {
