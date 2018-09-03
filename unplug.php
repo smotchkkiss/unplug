@@ -8,13 +8,6 @@ Author URI: http://unfun.de
 */
 
 // FEATURE IDEAS - let's see if we're going to need them
-// - Add an option to switch off caching for individual routes
-// - Convenience idea: let unplug\unplug() instantiate a global
-//   $router so the user doesn't have to do it in their index.php,
-//   and instead can just start defining routes. (Also, can we not
-//   auto-start the router after all routes have been registered
-//   instead of having to call run explicitly? E.g. by forcing
-//   the user to register a catchall route and handle 404s?)
 // - Layout the cache directory like a static version of the website.
 //   So, instead of saving everything to a <sha256hash>.<extension>,
 //   save a request for a path to path/to/page/index.html. This would
