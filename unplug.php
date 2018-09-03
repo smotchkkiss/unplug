@@ -75,13 +75,13 @@ class Route {
     public $path;
     public $callback;
 
-    public function __construct (array $path, $callback) {
+    public function __construct(array $path, $callback) {
         $this->path = $path;
         $this->callback = $callback;
     }
 
     // make the callback fn directly callable
-    public function __call ($method, $args) {
+    public function __call($method, $args) {
         if (is_callable(array($this, $method))) {
             return call_user_func_array($this->$method, $args);
         }
@@ -94,7 +94,7 @@ class Request {
     public $params;
     public $query;
 
-    public function __construct (array $path, array $params, array $query) {
+    public function __construct(array $path, array $params, array $query) {
         $this->path = $path;
         $this->params = $params;
         $this->query = $query;
@@ -103,27 +103,27 @@ class Request {
 
 interface ResponseMethods {
 
-    public function is_cacheable ();
-    public function get_status ();
-    public function send ();
+    public function is_cacheable();
+    public function get_status();
+    public function send();
 }
 
 interface ContentResponseMethods {
 
-    public function get_extension ();
-    public function get_body ();
+    public function get_extension();
+    public function get_body();
 }
 
 interface RedirectResponseMethods {
 
-    public function get_location ();
+    public function get_location();
 }
 
 abstract class Response implements ResponseMethods {
 
     protected $status;
 
-    public function get_status () {
+    public function get_status() {
 
         return $this->status;
     }
@@ -133,7 +133,7 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
 
     protected $body;
 
-    public function __construct ($body, $_is_cacheable, $status) {
+    public function __construct($body, $_is_cacheable, $status) {
 
         if (!is_string($body) && !is_array($body)) {
             throw new \Exception('Response body must be a string or an array');
@@ -150,7 +150,7 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
         $this->status = $status;
     }
 
-    public function is_cacheable () {
+    public function is_cacheable() {
 
         return $this->_is_cacheable;
     }
@@ -158,17 +158,17 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
 
 class HTMLResponse extends ContentResponse {
 
-    public function get_extension () {
+    public function get_extension() {
 
         return 'html';
     }
 
-    public function get_body () {
+    public function get_body() {
 
         return $this->body;
     }
 
-    public function send () {
+    public function send() {
 
         status_header($this->status);
         echo $this->body;
@@ -177,17 +177,17 @@ class HTMLResponse extends ContentResponse {
 
 class JSONResponse extends ContentResponse {
 
-    public function get_extension () {
+    public function get_extension() {
 
         return 'json';
     }
 
-    public function get_body () {
+    public function get_body() {
 
         return json_encode($this->body);
     }
 
-    public function send () {
+    public function send() {
 
         status_header($this->status);
         wp_send_json($this->body);
@@ -200,17 +200,17 @@ class JSONResponse extends ContentResponse {
 // if a string is HTML or XML somehow?!
 class XMLResponse extends ContentResponse {
 
-    public function get_extension () {
+    public function get_extension() {
 
         return 'xml';
     }
 
-    public function get_body () {
+    public function get_body() {
 
         return $this->body;
     }
 
-    public function send () {
+    public function send() {
 
         status_header($this->status);
         header('Content-Type: text/xml');
@@ -218,7 +218,7 @@ class XMLResponse extends ContentResponse {
     }
 }
 
-function make_content_response ($response, $is_cacheable=true, $found=true) {
+function make_content_response($response, $is_cacheable=true, $found=true) {
 
     if (!is_bool($found)) {
         throw new \Exception('$found must be boolean');
@@ -247,7 +247,7 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
     protected $location;
     protected $status;
 
-    public function __construct ($location, $is_permanent=true) {
+    public function __construct($location, $is_permanent=true) {
 
         $this->location = self::normalise_location($location);
 
@@ -258,7 +258,7 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
         }
     }
 
-    protected static function normalise_location ($location) {
+    protected static function normalise_location($location) {
 
         if ($location[0] !== '/') {
             $location = '/' . $location;
@@ -269,17 +269,17 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
         return get_site_url() . $location;
     }
 
-    public function is_cacheable () {
+    public function is_cacheable() {
 
         return true;
     }
 
-    public function get_location () {
+    public function get_location() {
 
         return $this->location;
     }
 
-    public function send () {
+    public function send() {
 
         wp_redirect($this->get_location(), $this->get_status());
     }
@@ -289,19 +289,19 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
  * Convenience functions for use in routes
  */
 
-function ok ($response='', $is_cacheable=true) {
+function ok($response='', $is_cacheable=true) {
     return make_content_response($response, $is_cacheable);
 }
 
-function not_found ($response='', $is_cacheable=false) {
+function not_found($response='', $is_cacheable=false) {
     return make_content_response($response, $is_cacheable, false);
 }
 
-function moved_permanently ($location='/', $is_cacheable=true) {
+function moved_permanently($location='/', $is_cacheable=true) {
     return new RedirectResponse($location);
 }
 
-function found ($location='/', $is_cacheable=true) {
+function found($location='/', $is_cacheable=true) {
     return new RedirectResponse($location, false);
 }
 
@@ -312,7 +312,7 @@ function found ($location='/', $is_cacheable=true) {
  *
  * @returns String url
  */
-function get_current_url () {
+function get_current_url() {
 
     $current_url = trim(esc_url_raw(add_query_arg(array())), '/');
     $home_path = trim(parse_url(home_url(), PHP_URL_PATH), '/');
@@ -332,9 +332,9 @@ class Router {
      *
      * @returns array
      */
-    protected static function split_path ($path) {
+    protected static function split_path($path) {
         $path_segments = explode('/', $path);
-        $no_empty_str = array_filter($path_segments, function ($s) {
+        $no_empty_str = array_filter($path_segments, function($s) {
             // compare to empty string explicitly,
             // as e.g. a string with a single zero in it
             // would also ne coerced to false
@@ -344,7 +344,7 @@ class Router {
         // reset the array keys to 0..*
         $numbered_path_segments = array_values($no_empty_str);
         // path segments may have urlencoded special charactes
-        return array_map(function ($s) {
+        return array_map(function($s) {
             return urldecode($s);
         }, $numbered_path_segments);
     }
@@ -355,7 +355,7 @@ class Router {
      * This should be avoided. Make sure you supply
      * exhaustive routes.
      */
-    protected static function last_error_callback () {
+    protected static function last_error_callback() {
         return not_found();
     }
 
@@ -373,7 +373,7 @@ class Router {
      *
      * @returns mixed
      */
-    protected function path_matches_route (array $routeSpec) {
+    protected function path_matches_route(array $routeSpec) {
 
         $params = array();
         $PSSize = sizeof($this->path);
@@ -420,7 +420,7 @@ class Router {
     /**
      * Checks all routes for a match and executes callback
      */
-    protected function execute_matching_route () {
+    protected function execute_matching_route() {
 
         if ($this->method === 'post') {
             $routes = $this->post_routes;
@@ -450,7 +450,7 @@ class Router {
         return self::last_error_callback();
     }
 
-    public function __construct () {
+    public function __construct() {
 
         $current_url = get_current_url();
         $url_parts = explode('?', $current_url, 2);
@@ -478,7 +478,7 @@ class Router {
      * @param string $path
      * @param callable $callback
      */
-    public function get ($path, $callback) {
+    public function get($path, $callback) {
         $this->get_routes[] =
             new Route(self::split_path($path), $callback);
     }
@@ -491,7 +491,7 @@ class Router {
      * @param string $path
      * @param callable $callback
      */
-    public function post ($path, callable $callback) {
+    public function post($path, callable $callback) {
         $this->post_routes[] =
             new Route(self::split_path($path), $callback);
     }
@@ -501,7 +501,7 @@ class Router {
      *
      * Should be called after all routes have been registered
      */
-    public function run () {
+    public function run() {
 
         if (defined('UNPLUG_RUN') && UNPLUG_RUN) {
 
@@ -533,7 +533,7 @@ class Router {
  *
  * @param array options
  */
-function unplug ($options=array()) {
+function unplug($options=array()) {
 
     // check if this is an admin-panel
     // request, and if not, prevent wordpress from parsing
@@ -552,7 +552,7 @@ function unplug ($options=array()) {
 
         define('UNPLUG_RUN', true);
 
-        add_action('do_parse_request', function ($do_parse, $wp) {
+        add_action('do_parse_request', function($do_parse, $wp) {
             $wp->query_vars = array();
             remove_action('template_redirect', 'redirect_canonical');
             return FALSE;
@@ -577,7 +577,7 @@ function unplug ($options=array()) {
             define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
         }
 
-        $after_save_post = function () use ($options) {
+        $after_save_post = function() use ($options) {
 
             // this function will only be called if caching
             // is on, so it's safe to assume that
@@ -605,7 +605,7 @@ class Cache {
     /**
      * @throws if the sha256 hash algorithm is not available
      */
-    private static function assert_sha256_available () {
+    private static function assert_sha256_available() {
 
         if (!in_array('sha256', hash_algos(), true)) {
             throw new \Exception('SHA256 is not available');
@@ -619,10 +619,10 @@ class Cache {
      * @param string $dir
      * @returns string
      */
-    private static function one_dir_up ($dir) {
+    private static function one_dir_up($dir) {
 
         $segments = explode('/', $dir);
-        $segments = array_filter($segments, function ($str) {
+        $segments = array_filter($segments, function($str) {
             return $str !== '';
         });
         $length = sizeof($segments);
@@ -644,7 +644,7 @@ class Cache {
     * @param string $rewrite_base
     * @param array $rules
     */
-    private static function generate_htaccess_section ($rewrite_base) {
+    private static function generate_htaccess_section($rewrite_base) {
 
         $directives = array();
         $directives[] = '# BEGIN Unplug';
@@ -674,7 +674,7 @@ class Cache {
      * @param string $file
      * @returns array
      */
-    private static function create_rule ($path, $file) {
+    private static function create_rule($path, $file) {
 
         // this could be written less verbose of course now that there's only
         // one line, but I don't want to remove the multiline-rule support
@@ -693,7 +693,7 @@ class Cache {
      * @param string $file
      * @returns array
      */
-    private static function create_rule_regexp ($regexp, $file) {
+    private static function create_rule_regexp($regexp, $file) {
 
         // this could be written less verbose of course now that there's only
         // one line, but I don't want to remove the multiline-rule support
@@ -705,7 +705,7 @@ class Cache {
         return $rule;
     }
 
-    private static function create_rule_redirect ($path, $location, $status) {
+    private static function create_rule_redirect($path, $location, $status) {
 
         $rule = array();
         $rule[] = 'RewriteRule ^' . preg_quote($path) . '/?$ '
@@ -720,7 +720,7 @@ class Cache {
     /**
      * @param string $dir
      */
-    public function __construct ($dir) {
+    public function __construct($dir) {
 
         // create the cache dir if it doesn't exist
         if (!file_exists($dir)) {
@@ -737,7 +737,7 @@ class Cache {
     /**
      * New public interface: cache a new Response
      */
-    public function add ($path, $response) {
+    public function add($path, $response) {
 
         // get the relative path to the cache dir
         $rel_dir = $this->find_rel_dir();
@@ -764,7 +764,7 @@ class Cache {
         }
     }
 
-    public function add_regexp ($regexp, $response) {
+    public function add_regexp($regexp, $response) {
 
         // get the relative path to the cache dir
         $rel_dir = $this->find_rel_dir();
@@ -784,7 +784,7 @@ class Cache {
     /**
      * Public interface ii: invalidate the cache
      */
-    public function flush () {
+    public function flush() {
 
         // clean up rules from the .htaccess file,
         // but don't delete the unplug section itself.
@@ -811,7 +811,7 @@ class Cache {
      *
      * @throws if .htaccess isn't readable
      */
-    private function read_htaccess () {
+    private function read_htaccess() {
 
         $htaccess_str = file_get_contents($this->htaccess_path);
 
@@ -829,7 +829,7 @@ class Cache {
      *
      * @throws if writing fails
      */
-    private function write_htaccess () {
+    private function write_htaccess() {
 
         $htaccess_str = join("\n", $this->htaccess);
 
@@ -846,7 +846,7 @@ class Cache {
      * Extract the first RewriteBase line from a .htaccess
      * or set $this->rewrite_base to a default 'RewriteBase /'
      */
-    private function extract_rewrite_base () {
+    private function extract_rewrite_base() {
 
         $lines = array_filter($this->htaccess, function ($line) {
             return substr($line, 0, 12) === 'RewriteBase ';
@@ -867,7 +867,7 @@ class Cache {
      *
      * @param array $rule
      */
-    private function insert_rule (array $rule) {
+    private function insert_rule(array $rule) {
 
         // true means strict comparison (no type coercion)
         $end = array_search('# END Unplug rules', $this->htaccess, true);
@@ -903,7 +903,7 @@ class Cache {
      *
      * @returns bool
      */
-    private function rule_exists (array $rule) {
+    private function rule_exists(array $rule) {
 
         // true means strict comparison (no type coercion)
         $begin = array_search('# BEGIN Unplug rules', $this->htaccess, true);
@@ -948,7 +948,7 @@ class Cache {
      * @returns string
      * @throws if file not writable
      */
-    private function save ($path, $response) {
+    private function save($path, $response) {
 
         $hash = hash('sha256', $path);
 
@@ -967,7 +967,7 @@ class Cache {
     /**
      * Remove all rewrite rules from the .htaccess Unplug section
      */
-    private function remove_all_rules () {
+    private function remove_all_rules() {
 
         $begin = array_search('# BEGIN Unplug rules', $this->htaccess, true);
         $end = array_search('# END Unplug rules', $this->htaccess, true);
@@ -994,7 +994,7 @@ class Cache {
      *      was superseded by remove_all_rules; If it becomes
      *      clear that we won't need it again, remove it!
      */
-    private function remove_htaccess_section () {
+    private function remove_htaccess_section() {
 
         $begin = array_search('# BEGIN Unplug', $this->htaccess, true);
         $end = array_search('# END Unplug', $this->htaccess, true);
@@ -1021,7 +1021,7 @@ class Cache {
      * Find the path to your nearest .htaccess file
      * in the directory of this file or one above it
      */
-    private function find_htaccess_path () {
+    private function find_htaccess_path() {
 
         $htaccess = '/.htaccess';
         $dir = __DIR__;
@@ -1045,7 +1045,7 @@ class Cache {
      *
      * @returns string
      */
-    private function find_rel_dir () {
+    private function find_rel_dir() {
 
         // split the paths to the htaccess file and
         // to the cache dir into parts
@@ -1073,7 +1073,7 @@ class Cache {
      * Recursively delete all the files and folders
      * in the cache directory
      */
-    private function empty_cache_directory () {
+    private function empty_cache_directory() {
 
         self::empty_directory($this->dir);
     }
@@ -1084,7 +1084,7 @@ class Cache {
      *
      * @param string $directory
      */
-    private static function recursive_remove_directory ($directory) {
+    private static function recursive_remove_directory($directory) {
 
         self::empty_directory($directory);
 
@@ -1097,7 +1097,7 @@ class Cache {
      *
      * @param string $directory
      */
-    private static function empty_directory ($directory) {
+    private static function empty_directory($directory) {
 
         foreach (glob("{$directory}/*") as $file) {
 
@@ -1116,7 +1116,7 @@ class Cache {
      * @param string $path
      * @returns string
      */
-    private function prepare_path ($path) {
+    private function prepare_path($path) {
 
         $rb_length = strlen($this->rewrite_base);
         $p_length = strlen($path);
