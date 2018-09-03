@@ -2,7 +2,7 @@
 /*
 Plugin Name: unplug
 Description: Unplug WP's assumptive defaults
-Version: 0.0.0
+Version: 0.0.1
 Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
@@ -85,19 +85,6 @@ class Route {
         if (is_callable(array($this, $method))) {
             return call_user_func_array($this->$method, $args);
         }
-    }
-}
-
-class Request {
-
-    public $path;
-    public $params;
-    public $query;
-
-    public function __construct(array $path, array $params, array $query) {
-        $this->path = $path;
-        $this->params = $params;
-        $this->query = $query;
     }
 }
 
@@ -363,6 +350,7 @@ class Router {
     protected $path;
     protected $query;
     protected $method;
+    protected $middlewares = array();
     protected $get_routes = array();
     protected $post_routes = array();
 
@@ -435,13 +423,22 @@ class Router {
 
             if ($is_match) {
 
+                $context = array(
+                    'path' => $this->path,
+                    'params' => $params,
+                    'query' => $this->query,
+                );
+
+                foreach ($this->middlewares as $middleware) {
+                    $res = $middleware($context);
+                    if ($res !== NULL) {
+                        $context = $res;
+                    }
+                }
+
                 // run the user-supplied callback function with the route
                 // params plus any query parameters in an object as arguments
-                return $route->callback(new Request(
-                  $this->path,
-                  $params,
-                  $this->query
-                ));
+                return $route->callback($context);
             }
         }
 
@@ -470,6 +467,16 @@ class Router {
 
         $this->path = $url_path;
         $this->query = $url_vars;
+    }
+
+    /**
+     * Registers a global middleware that will be called on all
+     * routes, before the route callback.
+     *
+     * @param callable $callback
+     */
+    public function use($callback) {
+        $this->middlewares[] = $callback;
     }
 
     /**
