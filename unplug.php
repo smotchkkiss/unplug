@@ -2,7 +2,7 @@
 /*
 Plugin Name: unplug
 Description: Unplug WP's assumptive defaults
-Version: 0.0.3
+Version: 0.0.4
 Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
@@ -534,6 +534,177 @@ function _use($middleware) {
 
 function get($path, $callback) {
     Router::get_default_instance()->get($path, $callback);
+}
+
+// function get_one($path, $callback) [2]
+// function get_one($type, $path, $callback) [3]
+// function get_one($type, $param, $path, $callback) [4]
+// function get_one($type, $key, $param, $path, $callback) [5]
+// function get_one([$type, [[$key,] $param,]] $path, $callback)
+function get_one() {
+    $num_args = func_num_args();
+    if ($num_args < 2 || $num_args > 5) {
+        throw new \Exception('get_single expects 2-5 arguments');
+    }
+
+    // callback is always next-to-last argument,
+    // path always comes before it
+    $callback = func_get_arg($num_args - 1);
+    $path = func_get_arg($num_args - 2);
+
+    if ($num_args > 2) {
+        $type = func_get_arg(0);
+    } else {
+        $path_fix_segments = array_values(array_filter(
+            explode('/', $path),
+            function($segment) {
+                return strlen($segment) && $segment[0] !== ':';
+            }
+        ));
+        $type_name = $path_fix_segments[0];
+        foreach (get_post_types(null, 'objects') as $post_type) {
+            if (strtolower($post_type->labels->singular_name) === $type_name
+                || strtolower($post_type->labels->name) === $type_name) {
+                $type = $post_type->name;
+                break;
+            }
+        }
+        if (!isset($type)) {
+            $type = 'post';
+        }
+    }
+
+    if ($num_args > 3) {
+        $param = func_get_arg($num_args - 3);
+    } else {
+        $path_params = array_values(array_filter(
+            explode('/', $path),
+            function($segment) {
+                return substr($segment, 0, 1) === ':';
+            }
+        ));
+        $param = substr($path_params[0], 1);
+    }
+
+    if ($num_args > 4) {
+        $key = func_get_arg(1);
+    } else {
+        $key = $param;
+    }
+
+    Router::get_default_instance()->get(
+        $path,
+        function($context) use ($type, $key, $param, $callback) {
+            $query = [
+                'post_type' => $type,
+                'posts_per_page' => -1,
+            ];
+            if (isset($context['params'][$param])) {
+                $query[$key] = $context['params'][$param];
+            }
+            $posts = get_posts($query);
+            if ($posts) {
+                $context['post'] = $posts[0];
+                return $callback($context);
+            }
+        }
+    );
+}
+
+// function get_many($path, $callback) [2]
+// function get_many($post_type, $path, $callback) [3]
+// function get_many($post_type, $posts_per_page, $path, $callback) [4]
+// function get_many($path, $options, $callback) [3]
+// $options = [
+//     'post_type' => 'post',
+//     'posts_per_page' => 10,
+//     'order' => 'ASC',
+//     'order_by' => 'menu_order',
+//     'param' => 'page',
+// ]
+function get_many() {
+    $num_args = func_num_args();
+    if ($num_args < 2 || $num_args > 4) {
+        throw new \Exception('get_page expects 2-4 arguments');
+    }
+
+    $callback = func_get_arg($num_args - 1);
+
+    $snd_arg = func_get_arg(1);
+    if (is_array($snd_arg)) {
+        $options = $snd_arg;
+    } else {
+        $options = [];
+    }
+
+    if ($num_args === 3 && is_array($snd_arg)) {
+        $path = func_get_arg(0);
+    } else {
+        $path = func_get_arg($num_args - 2);
+    }
+
+    if ($num_args > 2 && !is_array($snd_arg)) {
+        $options['post_type'] = func_get_arg(0);
+    } elseif (!isset($options['post_type'])) {
+        $path_fix_segments = array_values(array_filter(
+            explode('/', $path),
+            function($segment) {
+                return strlen($segment) && $segment[0] !== ':';
+            }
+        ));
+        if ($path_fix_segments) {
+            $type_name = $path_fix_segments[0];
+            foreach (get_post_types(null, 'objects') as $post_type) {
+                if (strtolower($post_type->labels->singular_name) === $type_name
+                    || strtolower($post_type->labels->name) === $type_name) {
+                    $options['post_type'] = $post_type->name;
+                    break;
+                }
+            }
+        }
+        if (!isset($options['post_type'])) {
+            $options['post_type'] = 'post';
+        }
+    }
+
+    if ($num_args > 3) {
+        $options['posts_per_page'] = func_get_arg(1);
+    } elseif (!isset($options['posts_per_page'])) {
+        $options['posts_per_page'] = -1;
+    }
+
+    if (isset($options['param'])) {
+        $param = $options['param'];
+        unset($options['param']);
+    } else {
+        $path_params = array_values(array_filter(
+            explode('/', $path),
+            function($segment) {
+                return substr($segment, 0, 1) === ':';
+            }
+        ));
+        if ($path_params) {
+            $param = substr($path_params[0], 1);
+        } else {
+            $param = NULL;
+        }
+    }
+
+    Router::get_default_instance()->get(
+        $path,
+        function($context) use ($options, $param, $callback) {
+            $query = $options;
+            if ($param && isset($context['params'][$param])) {
+                $page = intval($context['params'][$param]);
+                if (!$page) {
+                    return;
+                }
+                $query['paged'] = $page;
+            }
+            $context['posts'] = get_posts($query);
+            return $callback($context);
+        }
+    );
 }
 
 function post($path, $callback) {
