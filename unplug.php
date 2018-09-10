@@ -319,14 +319,32 @@ class Router {
 
     function get($path, $callback) {
         $path_segments = explode('/', trim($path, '/'));
-        $node = &self::trie_insert($this->get_trie, $path_segments, 0);
-        $node['callback'] = $callback;
+        $path_variations = self::get_path_variations($path_segments);
+        foreach ($path_variations as $path_variation) {
+            // completely empty variations don't work with the
+            // trie - the root path needs to be represented by an
+            // array containing an empty string
+            if (!$path_variation) {
+                $path_variation[] = '';
+            }
+            $node = &self::trie_insert($this->get_trie, $path_variation, 0);
+            $node['callback'] = $callback;
+        }
     }
 
     function post($path, $callback) {
         $path_segments = explode('/', trim($path, '/'));
-        $node = &self::trie_insert($this->post_trie, $path_segments, 0);
-        $node['callback'] = $callback;
+        $path_variations = self::get_path_variations($path_segments);
+        foreach ($path_variations as $path_variation) {
+            // completely empty variations don't work with the
+            // trie - the root path needs to be represented by an
+            // array containing an empty string
+            if (!$path_variation) {
+                $path_variation[] = '';
+            }
+            $node = &self::trie_insert($this->post_trie, $path_variation, 0);
+            $node['callback'] = $callback;
+        }
     }
 
     function fallback($callback) {
@@ -520,6 +538,50 @@ class Router {
             return "/$path";
         }
         return $path;
+    }
+
+    static function get_path_variations($path_segments) {
+        $optionals = array_keys(array_filter(
+            $path_segments,
+            function($segment) {
+                return substr($segment, -1) === '?';
+            }
+        ));
+        $permutations = self::get_permutations($optionals);
+
+        $no_question = array_map(function($segment) {
+            if (substr($segment, -1) === '?') {
+                return substr($segment, 0, -1);
+            } else {
+                return $segment;
+            }
+        }, $path_segments);
+
+        $variations = [$no_question];
+        foreach ($permutations as $permutation) {
+            $variation = $no_question;
+            $length_correction = 0;
+            foreach ($permutation as $index) {
+                array_splice($variation, $index - $length_correction, 1);
+                $length_correction++;
+            }
+            $variations[] = $variation;
+        }
+        return $variations;
+    }
+
+    static function get_permutations($input) {
+        $res = array();
+        while ($input) {
+            $input_element = array_shift($input);
+            $solution = array($input_element);
+            $res[] = $solution;
+            foreach ($input as $rest) {
+                $solution = array_merge($solution, array($rest));
+                $res[] = $solution;
+            }
+        }
+        return $res;
     }
 }
 
