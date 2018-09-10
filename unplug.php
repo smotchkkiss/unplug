@@ -518,28 +518,23 @@ class Router {
 
 
 function _use($middleware) {
-    $router = Router::get_default_instance();
-    $router->use($middleware);
+    Router::get_default_instance()->use($middleware);
 }
 
 function get($path, $callback) {
-    $router = Router::get_default_instance();
-    $router->get($path, $callback);
+    Router::get_default_instance()->get($path, $callback);
 }
 
 function post($path, $callback) {
-    $router = Router::get_default_instance();
-    $router->post($path, $callback);
+    Router::get_default_instance()->post($path, $callback);
 }
 
 function fallback($callback) {
-    $router = Router::get_default_instance();
-    $router->fallback($callback);
+    Router::get_default_instance()->fallback($callback);
 }
 
 function dispatch() {
-    $router = Router::get_default_instance();
-    $router->run();
+    Router::get_default_instance()->run();
 }
 
 
