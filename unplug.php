@@ -2,7 +2,7 @@
 /*
 Plugin Name: unplug
 Description: Unplug WP's assumptive defaults
-Version: 0.0.2
+Version: 0.0.3
 Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
@@ -379,7 +379,9 @@ class Router {
         // if route was matched, but didn't return a valid
         // response, we want to execute the global 404, too.
         if (!isset($response) || $response === NULL) {
-            $response = call_user_func($this->not_found_callback, $context);
+            $response = not_found(
+                call_user_func($this->not_found_callback, $context)
+            );
         }
 
         return $response;
