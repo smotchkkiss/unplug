@@ -358,7 +358,7 @@ class Router {
             // serialise path again
             $path = join('/', $this->path);
 
-            $cache = new Cache(UNPLUG_CACHE_DIR);
+            $cache = Cache::Instance();
             $cache->add($path, $response);
         }
 
@@ -736,10 +736,18 @@ class Cache {
     private $htaccess;
     private $htaccess_path;
 
+    public function Instance() {
+        static $instance = NULL;
+        if ($instance === NULL) {
+            $instance = new Cache(UNPLUG_CACHE_DIR);
+        }
+        return $instance;
+    }
+
     /**
      * @param string $dir
      */
-    public function __construct($dir) {
+    private function __construct($dir) {
 
         // create the cache dir if it doesn't exist
         if (!file_exists($dir)) {
