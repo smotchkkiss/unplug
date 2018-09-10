@@ -2,7 +2,7 @@
 /*
 Plugin Name: unplug
 Description: Unplug WP's assumptive defaults
-Version: 0.0.1
+Version: 0.0.2
 Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
@@ -45,17 +45,6 @@ Author URI: http://unfun.de
 //   page generator with the comfortable/convenient API of a router!
 //   Best of both worlds?
 
-// TODO:
-// - move path matching from Router to Route class
-// - maybe make path matching more efficient by making it more lazy,
-//   like not splitting up all the paths when the routes are created,
-//   and rather only compare them when it's really necessary, and
-//   then probably with a super-efficient string-based imperative
-//   compare method that doesn't even need to split them into arrays?
-// - can other parts be made more efficient by making them more lazy
-//   (like only creating instances the moment they're really needed,)
-//   and then memoizing them, for example?)
-
 namespace unplug;
 
 if (!defined('ABSPATH')) {
@@ -70,23 +59,6 @@ if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', false);
 }
 
-class Route {
-
-    public $path;
-    public $callback;
-
-    public function __construct(array $path, $callback) {
-        $this->path = $path;
-        $this->callback = $callback;
-    }
-
-    // make the callback fn directly callable
-    public function __call($method, $args) {
-        if (is_callable(array($this, $method))) {
-            return call_user_func_array($this->$method, $args);
-        }
-    }
-}
 
 interface ResponseMethods {
 
@@ -95,16 +67,19 @@ interface ResponseMethods {
     public function send();
 }
 
+
 interface ContentResponseMethods {
 
     public function get_extension();
     public function get_body();
 }
 
+
 interface RedirectResponseMethods {
 
     public function get_location();
 }
+
 
 abstract class Response implements ResponseMethods {
 
@@ -115,6 +90,7 @@ abstract class Response implements ResponseMethods {
         return $this->status;
     }
 }
+
 
 abstract class ContentResponse extends Response implements ContentResponseMethods {
 
@@ -143,6 +119,7 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
     }
 }
 
+
 class HTMLResponse extends ContentResponse {
 
     public function get_extension() {
@@ -162,6 +139,7 @@ class HTMLResponse extends ContentResponse {
     }
 }
 
+
 class JSONResponse extends ContentResponse {
 
     public function get_extension() {
@@ -180,6 +158,7 @@ class JSONResponse extends ContentResponse {
         wp_send_json($this->body);
     }
 }
+
 
 // TODO we need a way to trigger this, manually returning new
 // unplug\XMLResponses is not very convenient. HTML and JSON are
@@ -205,6 +184,7 @@ class XMLResponse extends ContentResponse {
     }
 }
 
+
 function make_content_response($response, $is_cacheable=true, $found=true) {
 
     if (!is_bool($found)) {
@@ -228,6 +208,7 @@ function make_content_response($response, $is_cacheable=true, $found=true) {
     }
     throw new \Exception('$response must be string, array or Response');
 }
+
 
 class RedirectResponse extends Response implements RedirectResponseMethods {
 
@@ -272,6 +253,7 @@ class RedirectResponse extends Response implements RedirectResponseMethods {
     }
 }
 
+
 /**
  * Convenience functions for use in routes
  */
@@ -292,6 +274,7 @@ function found($location='/', $is_cacheable=true) {
     return new RedirectResponse($location, false);
 }
 
+
 /**
  * Gets the current url, but without protocol/host
  * By Giuseppe Mazzapica @gmazzap as published on
@@ -310,227 +293,207 @@ function get_current_url() {
     return $current_url;
 }
 
+
 class Router {
 
-    /**
-     * Splits a path into segments, omitting empty strings
-     *
-     * @param string $path
-     *
-     * @returns array
-     */
-    protected static function split_path($path) {
-        $path_segments = explode('/', $path);
-        $no_empty_str = array_filter($path_segments, function($s) {
-            // compare to empty string explicitly,
-            // as e.g. a string with a single zero in it
-            // would also ne coerced to false
-            // (of course, PHP, what was I thinking!?)
-            return $s !== '';
-        });
-        // reset the array keys to 0..*
-        $numbered_path_segments = array_values($no_empty_str);
-        // path segments may have urlencoded special charactes
-        return array_map(function($s) {
-            return urldecode($s);
-        }, $numbered_path_segments);
+    function __construct() {
+        $this->base_path = '/';
+        $this->get_trie = array('nodes' => array());
+        $this->post_trie = array('nodes' => array());
+        $this->middlewares = array();
     }
 
-    /**
-     * Returns a very basic 404 message to the client
-     *
-     * This should be avoided. Make sure you supply
-     * exhaustive routes.
-     */
-    protected static function last_error_callback() {
-        return not_found();
-    }
-
-    protected $cache;
-    protected $path;
-    protected $query;
-    protected $method;
-    protected $middlewares = array();
-    protected $get_routes = array();
-    protected $post_routes = array();
-
-    /**
-     * Checks wether the path matches a route specification
-     *
-     * @param array $routeSpec
-     *
-     * @returns mixed
-     */
-    protected function path_matches_route(array $routeSpec) {
-
-        $params = array();
-        $PSSize = sizeof($this->path);
-        $RSSize = sizeof($routeSpec);
-
-        // match the index route
-        if ($PSSize === 0 and $RSSize === 0) {
-            return $params;
-        }
-
-        // match the catchall route
-        if ($RSSize > 0 and $routeSpec[0] === '*') {
-            return $params;
-        }
-
-        // fail if different number of path segments
-        if ($PSSize !== $RSSize) {
-            return FALSE;
-        }
-
-        // compare allpath segments
-        for ($i = 0; $i < $PSSize; $i++) {
-
-            // variable segment matches everything
-            if (substr($routeSpec[$i], 0, 1) === ':') {
-
-                // remove colon from parameter name
-                $param_name = trim($routeSpec[$i], ':');
-
-                // add a named parameter value
-                $params[$param_name] = $this->path[$i];
-
-            // normal segments have to match exactly
-            } else if ($this->path[$i] !== $routeSpec[$i]) {
-
-                // if they don’t, it’s a complete mismatch
-                return FALSE;
-            }
-        }
-
-        return $params;
-    }
-
-    /**
-     * Checks all routes for a match and executes callback
-     */
-    protected function execute_matching_route() {
-
-        if ($this->method === 'post') {
-            $routes = $this->post_routes;
-        } else {
-            $routes = $this->get_routes;
-        }
-
-        foreach ($routes as $route) {
-
-            $params = self::path_matches_route($route->path);
-            $is_match = is_array($params);
-
-            if ($is_match) {
-
-                $context = array(
-                    'path' => $this->path,
-                    'params' => $params,
-                    'query' => $this->query,
-                );
-
-                foreach ($this->middlewares as $middleware) {
-                    $res = $middleware($context);
-                    if ($res !== NULL) {
-                        $context = $res;
-                    }
-                }
-
-                // run the user-supplied callback function with the route
-                // params plus any query parameters in an object as arguments
-                return $route->callback($context);
-            }
-        }
-
-        // in case the supplied routes aren’t exhaustive,
-        // and none matched, this is the last resort
-        return self::last_error_callback();
-    }
-
-    public function __construct() {
-
-        $current_url = get_current_url();
-        $url_parts = explode('?', $current_url, 2);
-
-        $url_path = self::split_path($url_parts[0]);
-
-        $url_vars = array();
-        if (isset($url_parts[1])) {
-            parse_str($url_parts[1], $url_vars);
-        }
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $this->method = 'post';
-        } else {
-            $this->method = 'get';
-        }
-
-        $this->path = $url_path;
-        $this->query = $url_vars;
-    }
-
-    /**
-     * Registers a global middleware that will be called on all
-     * routes, before the route callback.
-     *
-     * @param callable $callback
-     */
     public function use($callback) {
         $this->middlewares[] = $callback;
     }
 
-    /**
-     * Registers a callback on a certain GET route
-     *
-     * @param string $path
-     * @param callable $callback
-     */
-    public function get($path, $callback) {
-        $this->get_routes[] =
-            new Route(self::split_path($path), $callback);
+    function get($path, $callback) {
+        $path_segments = explode('/', trim($path, '/'));
+        $node = &self::trie_insert($this->get_trie, $path_segments, 0);
+        $node['callback'] = $callback;
     }
 
-    /**
-     * Registers a callback on a certain POST route
-     *
-     * post routes will never be cached.
-     *
-     * @param string $path
-     * @param callable $callback
-     */
-    public function post($path, callable $callback) {
-        $this->post_routes[] =
-            new Route(self::split_path($path), $callback);
+    function post($path, $callback) {
+        $path_segments = explode('/', trim($path, '/'));
+        $node = &self::trie_insert($this->post_trie, $path_segments, 0);
+        $node['callback'] = $callback;
     }
 
-    /**
-     * Checks all registered routes against method and path and executes callback
-     *
-     * Should be called after all routes have been registered
-     */
-    public function run() {
+    function run() {
+        $current_url = get_current_url();
+        $url_parts = explode('?', $current_url, 2);
+        $path_segments = explode('/', $url_parts[0]);
+        $query = array();
+        if (isset($url_parts[1])) {
+            parse_str($url_parts[1], $query);
+        }
+        $route_trie = $this->get_route_trie();
 
-        if (defined('UNPLUG_RUN') && UNPLUG_RUN) {
+        $response = $this->execute_matching_route(
+            $route_trie,
+            $path_segments,
+            $query
+        );
 
-            $response = $this->execute_matching_route();
+        // if $response is already a Response object,
+        // it will be returned untouched
+        $response = make_content_response($response);
 
-            // if $response is already a Response object,
-            // it will be returned untouched
-            $response = make_content_response($response);
+        if (UNPLUG_CACHE && $response->is_cacheable()) {
 
-            if (UNPLUG_CACHE && $response->is_cacheable()) {
+            // serialise path again
+            $path = join('/', $this->path);
 
-                // serialise path again
-                $path = join('/', $this->path);
+            $cache = new Cache(UNPLUG_CACHE_DIR);
+            $cache->add($path, $response);
+        }
 
-                $cache = new Cache(UNPLUG_CACHE_DIR);
-                $cache->add($path, $response);
-            }
+        $response->send();
+    }
 
-            $response->send();
+    function get_route_trie() {
+        switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            return $this->get_trie;
+        case 'POST':
+            return $this->post_trie;
+        default:
+            return array('nodes' => array());
         }
     }
+
+    function execute_matching_route($route_trie, $path_segments, $query) {
+        $params = array();
+        $node = self::trie_search($route_trie, $path_segments, 0, $params);
+        $context = $this->get_context($path_segments, $params, $query);
+
+        if ($node && isset($node['callback'])) {
+            return $node['callback']($context);
+        } elseif (isset($route_trie['wildcard_name'])) {
+            $params = array();
+            $params[$route_trie['wildcard_name']] = join('/', $path_segments);
+            $context['params'] = $params;
+            return $route_trie['wildcard_node']['callback']($context);
+        } else {
+            return self::last_error_callback();
+        }
+    }
+
+    function get_context($path_segments, $params, $query) {
+        return $this->apply_middlewares(array(
+            'path' => self::reconstruct_path($path_segments),
+            'params' => $params,
+            'query' => $query,
+        ));
+    }
+
+    function apply_middlewares($context) {
+        foreach ($this->middlewares as $middleware) {
+            $res = $middleware($context);
+            if ($res !== NULL) {
+                $context = $res;
+            }
+        }
+        return $context;
+    }
+
+    static function &trie_insert(&$trie, $path_segments, $index) {
+        if (!isset($path_segments[$index])) {
+            return $trie;
+        }
+        $segment = $path_segments[$index];
+
+        if (strlen($segment) > 0 && $segment[0] === '*') {
+            $node = &self::trie_insert_wildcard_node($trie, $segment);
+        } elseif (strlen($segment) > 0 && $segment[0] === ':') {
+            $node = &self::trie_insert_param_node($trie, $segment);
+        } else {
+            $node = &self::trie_insert_static_node($trie, $segment);
+        }
+        return self::trie_insert($node, $path_segments, $index + 1);
+    }
+
+    static function &trie_insert_wildcard_node(&$trie, $segment) {
+        if (!isset($trie['wildcard_node'])) {
+            $node = array('nodes' => array());
+            $trie['wildcard_node'] = &$node;
+        } else {
+            $node = &$trie['wildcard_node'];
+        }
+        if (strlen($segment) > 1) {
+            $trie['wildcard_name'] = substr($segment, 1);
+        } else {
+            $trie['wildcard_name'] = 'wildcard';
+        }
+        return $node;
+    }
+
+    static function &trie_insert_param_node(&$trie, $segment) {
+        if (!isset($trie['param_node'])) {
+            $node = array('nodes' => array());
+            $trie['param_node'] = &$node;
+        } else {
+            $node = &$trie['param_node'];
+        }
+        $trie['param_name'] = substr($segment, 1);
+        return $node;
+    }
+
+    static function &trie_insert_static_node(&$trie, $segment) {
+        if(!isset($trie['nodes'][$segment])) {
+            $node = array('nodes' => array());
+            $trie['nodes'][$segment] = &$node;
+        } else {
+            $node = &$trie['nodes'][$segment];
+        }
+        return $node;
+    }
+
+    static function trie_search($trie, $path, $index, &$params) {
+        if (!isset($path[$index])) {
+            return $trie;
+        }
+
+        if (isset($trie['nodes'][$path[$index]])) {
+            return self::trie_search_static_node($trie, $path, $index, $params);
+        } elseif (isset($trie['param_name'])) {
+            return self::trie_search_param_node($trie, $path, $index, $params);
+        } elseif (isset($trie['wildcard_name'])) {
+            return self::trie_search_wildcard_node($trie, $path, $index, $params);
+        }
+    }
+
+    static function trie_search_static_node($trie, $path, $index, &$params) {
+        $node = $trie['nodes'][$path[$index]];
+        return self::trie_search($node, $path, $index + 1, $params);
+    }
+
+    static function trie_search_param_node($trie, $path, $index, &$params) {
+        $params[$trie['param_name']] = urldecode($path[$index]);
+        $node = $trie['param_node'];
+        return self::trie_search($node, $path, $index + 1, $params);
+    }
+
+    static function trie_search_wildcard_node($trie, $path, $index, &$params) {
+        $path = array_slice($path, $index);
+        $path = array_map('urldecode', $path);
+        $params[$trie['wildcard_name']] = join('/', $path);
+        return $trie['wildcard_node'];
+    }
+
+    static function last_error_callback() {
+        return not_found();
+    }
+
+    static function reconstruct_path($path_segments) {
+        $path = join('/', $path_segments);
+        if (!strlen($path) || $path[0] !== '/') {
+            return "/$path";
+        }
+        return $path;
+    }
 }
+
 
 /**
  * Call unplug\unplug in your functions.php to
@@ -606,6 +569,7 @@ function unplug($options=array()) {
         }
     }
 }
+
 
 class Cache {
 
