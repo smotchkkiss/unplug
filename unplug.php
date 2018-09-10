@@ -401,11 +401,23 @@ class Router {
     }
 
     function get_context($path_segments, $params, $query) {
-        return $this->apply_middlewares(array(
-            'path' => self::reconstruct_path($path_segments),
+        $site_url = get_site_url();
+        $path = self::reconstruct_path($path_segments);
+        $current_url = $site_url.$path;
+        if (substr($current_url, -1) !== '/') {
+            $current_url .= '/';
+        }
+        $context = array(
+            'path' => $path,
             'params' => $params,
             'query' => $query,
-        ));
+            'site_url' => $site_url,
+            'current_url' => $current_url,
+            'theme_url' => get_template_directory_uri(),
+            'site_title' => get_bloginfo(),
+            'site_description' => get_bloginfo('description'),
+        );
+        return $this->apply_middlewares($context);
     }
 
     function apply_middlewares($context) {
@@ -515,7 +527,6 @@ class Router {
 /**
  * Convenience interface to the default Router instance
  */
-
 
 function _use($middleware) {
     Router::get_default_instance()->use($middleware);
