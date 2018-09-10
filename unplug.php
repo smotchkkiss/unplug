@@ -44,6 +44,8 @@ Author URI: http://unfun.de
 //   of makes sense). This way, we would effectively have a static
 //   page generator with the comfortable/convenient API of a router!
 //   Best of both worlds?
+//   TODO:
+//   - prevent router from running more than once [?]
 
 namespace unplug;
 
@@ -296,12 +298,19 @@ function get_current_url() {
 
 class Router {
 
+    static function get_default_instance() {
+        static $default_instance = NULL;
+        if ($default_instance === NULL) {
+            $default_instance = new Router();
+        }
+        return $default_instance;
+    }
+
     function __construct() {
         $this->base_path = '/';
         $this->get_trie = array('nodes' => array());
         $this->post_trie = array('nodes' => array());
         $this->middlewares = array();
-        $this->not_found_callback = 'not_found';
     }
 
     public function use($callback) {
@@ -320,8 +329,8 @@ class Router {
         $node['callback'] = $callback;
     }
 
-    function not_found($callback) {
-        $this->not_found_callback = $callback;
+    function fallback($callback) {
+        $this->fallback_callback = $callback;
     }
 
     function run() {
@@ -379,9 +388,13 @@ class Router {
         // if route was matched, but didn't return a valid
         // response, we want to execute the global 404, too.
         if (!isset($response) || $response === NULL) {
-            $response = not_found(
-                call_user_func($this->not_found_callback, $context)
-            );
+            if (isset($this->fallback_callback)) {
+                $response = not_found(
+                    call_user_func($this->fallback_callback, $context)
+                );
+            } else {
+                $response = not_found();
+            }
         }
 
         return $response;
@@ -496,6 +509,37 @@ class Router {
         }
         return $path;
     }
+}
+
+
+/**
+ * Convenience interface to the default Router instance
+ */
+
+
+function _use($middleware) {
+    $router = Router::get_default_instance();
+    $router->use($middleware);
+}
+
+function get($path, $callback) {
+    $router = Router::get_default_instance();
+    $router->get($path, $callback);
+}
+
+function post($path, $callback) {
+    $router = Router::get_default_instance();
+    $router->post($path, $callback);
+}
+
+function fallback($callback) {
+    $router = Router::get_default_instance();
+    $router->fallback($callback);
+}
+
+function dispatch() {
+    $router = Router::get_default_instance();
+    $router->run();
 }
 
 
