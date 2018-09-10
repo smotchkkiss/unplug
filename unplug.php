@@ -301,6 +301,7 @@ class Router {
         $this->get_trie = array('nodes' => array());
         $this->post_trie = array('nodes' => array());
         $this->middlewares = array();
+        $this->not_found_callback = 'not_found';
     }
 
     public function use($callback) {
@@ -317,6 +318,10 @@ class Router {
         $path_segments = explode('/', trim($path, '/'));
         $node = &self::trie_insert($this->post_trie, $path_segments, 0);
         $node['callback'] = $callback;
+    }
+
+    function not_found($callback) {
+        $this->not_found_callback = $callback;
     }
 
     function run() {
@@ -368,15 +373,16 @@ class Router {
         $context = $this->get_context($path_segments, $params, $query);
 
         if ($node && isset($node['callback'])) {
-            return $node['callback']($context);
-        } elseif (isset($route_trie['wildcard_name'])) {
-            $params = array();
-            $params[$route_trie['wildcard_name']] = join('/', $path_segments);
-            $context['params'] = $params;
-            return $route_trie['wildcard_node']['callback']($context);
-        } else {
-            return self::last_error_callback();
+            $response = $node['callback']($context);
         }
+
+        // if route was matched, but didn't return a valid
+        // response, we want to execute the global 404, too.
+        if (!isset($response) || $response === NULL) {
+            $response = call_user_func($this->not_found_callback, $context);
+        }
+
+        return $response;
     }
 
     function get_context($path_segments, $params, $query) {
@@ -479,10 +485,6 @@ class Router {
         $path = array_map('urldecode', $path);
         $params[$trie['wildcard_name']] = join('/', $path);
         return $trie['wildcard_node'];
-    }
-
-    static function last_error_callback() {
-        return not_found();
     }
 
     static function reconstruct_path($path_segments) {
