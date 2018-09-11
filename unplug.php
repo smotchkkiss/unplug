@@ -347,8 +347,8 @@ class Router {
         }
     }
 
-    function fallback($callback) {
-        $this->fallback_callback = $callback;
+    function catchall($callback) {
+        $this->catchall_callback = $callback;
     }
 
     function run() {
@@ -406,9 +406,9 @@ class Router {
         // if route was matched, but didn't return a valid
         // response, we want to execute the global 404, too.
         if (!isset($response) || $response === NULL) {
-            if (isset($this->fallback_callback)) {
+            if (isset($this->catchall_callback)) {
                 $response = not_found(
-                    call_user_func($this->fallback_callback, $context)
+                    call_user_func($this->catchall_callback, $context)
                 );
             } else {
                 $response = not_found();
@@ -773,8 +773,8 @@ function post($path, $callback) {
     Router::get_default_instance()->post($path, $callback);
 }
 
-function fallback($callback) {
-    Router::get_default_instance()->fallback($callback);
+function catchall($callback) {
+    Router::get_default_instance()->catchall($callback);
 }
 
 function dispatch() {
