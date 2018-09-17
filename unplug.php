@@ -374,7 +374,7 @@ class Router {
         if (UNPLUG_CACHE && $response->is_cacheable()) {
 
             // serialise path again
-            $path = join('/', $this->path);
+            $path = join('/', $path_segments);
 
             $cache = Cache::Instance();
             $cache->add($path, $response);
@@ -975,7 +975,7 @@ class Cache {
     private $htaccess;
     private $htaccess_path;
 
-    public function Instance() {
+    public static function Instance() {
         static $instance = NULL;
         if ($instance === NULL) {
             $instance = new Cache(UNPLUG_CACHE_DIR);
