@@ -376,7 +376,7 @@ class Router {
             // serialise path again
             $path = join('/', $path_segments);
 
-            $cache = Cache::Instance();
+            $cache = Cache::get_instance();
             $cache->add($path, $response);
         }
 
@@ -839,8 +839,7 @@ function unplug($options=array()) {
             // this function will only be called if caching
             // is on, so it's safe to assume that
             // UNPLUG_CACHE_DIR will be set
-            $cache = new Cache(UNPLUG_CACHE_DIR);
-            $cache->flush();
+            Cache::get_instance()->flush();
 
             if (isset($options['on_save_post'])) {
                 $options['on_save_post']($cache);
@@ -975,7 +974,7 @@ class Cache {
     private $htaccess;
     private $htaccess_path;
 
-    public static function Instance() {
+    public static function get_instance() {
         static $instance = NULL;
         if ($instance === NULL) {
             $instance = new Cache(UNPLUG_CACHE_DIR);
