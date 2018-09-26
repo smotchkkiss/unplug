@@ -7,43 +7,6 @@ Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
 
-// FEATURE IDEAS - let's see if we're going to need them
-// - Layout the cache directory like a static version of the website.
-//   So, instead of saving everything to a <sha256hash>.<extension>,
-//   save a request for a path to path/to/page/index.html. This would
-//   imply that we have to change the way queries are handled. Options:
-//   - Build Websites that don't use urls with query strings
-//     I find that hard because sometimes a page has additional state
-//     that we want to preserve but it makes no sense to save it in
-//     a hierarchical structure like a path, for example if a certain
-//     section is expanded or not. Solution may be to not preserve such
-//     state, of course.
-//   - Handle queries with caching the same way we're doing it now,
-//     and save the version with the query to path/to/page/<hashsum>.html
-//     The Problem with this solution is that it undermines the original
-//     idea of having the cache look like a static version of the site
-//   - Ignore queries in the backend, just make one-line RewriteRules
-//     and always send the same file; if necessary, restore state via
-//     JavaScript
-//   - Another thing is that if we really want it to look like a static
-//     version of the site we'll have to empty the cache dir on
-//     Cache#flush, otherwise it will start to look more like a static
-//     version of the page plus some random old crap
-// - Insane Idea: with the cache directory laid out like the static site
-//   and everything, can we not make this even more like a static page
-//   generator and generate everything in one step instead of waiting
-//   for the user to request every single page? This would, of course,
-//   mean that parametrised routes will have to know every possible
-//   parameter in order to generate all the variations. But maybe that's
-//   not too hard, if it knows which field of which post_type to look
-//   up/transform in a certain way? (Could be just another function that
-//   is given to the route and when called returns all the options for
-//   each parameter or something!) And of course queries would be
-//   problematic again, so we'll have to throw them out completely or
-//   make them a JavaScript-only thing like mentioned before (it kind
-//   of makes sense). This way, we would effectively have a static
-//   page generator with the comfortable/convenient API of a router!
-//   Best of both worlds?
 //   TODO:
 //   - prevent router from running more than once [?]
 
