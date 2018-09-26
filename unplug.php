@@ -313,7 +313,7 @@ class Router {
         $this->middlewares = array();
     }
 
-    public function use($callback) {
+    public function _use($callback) {
         $this->middlewares[] = $callback;
     }
 
@@ -557,7 +557,7 @@ class Router {
             }
         }, $path_segments);
 
-        $variations = [$no_question];
+        $variations = array($no_question);
         foreach ($permutations as $permutation) {
             $variation = $no_question;
             $length_correction = 0;
@@ -591,7 +591,7 @@ class Router {
  */
 
 function _use($middleware) {
-    Router::get_default_instance()->use($middleware);
+    Router::get_default_instance()->_use($middleware);
 }
 
 function get($path, $callback) {
@@ -657,10 +657,10 @@ function get_one() {
     Router::get_default_instance()->get(
         $path,
         function($context) use ($type, $key, $param, $callback) {
-            $query = [
+            $query = array(
                 'post_type' => $type,
                 'posts_per_page' => -1,
-            ];
+            );
             if (isset($context['params'][$param])) {
                 $query[$key] = $context['params'][$param];
             }
@@ -696,7 +696,7 @@ function get_many() {
     if (is_array($snd_arg)) {
         $options = $snd_arg;
     } else {
-        $options = [];
+        $options = array();
     }
 
     if ($num_args === 3 && is_array($snd_arg)) {
