@@ -854,6 +854,14 @@ function unplug($options=array()) {
             add_action('acf/save_post', $after_save_post, 20);
         }
     }
+
+    // hide the sample permalink on the edit post page when unplug
+    // is in use, because the whole point of unplug is to implement
+    // your own routing, so what wordpress thinks what the url of a
+    // post is will often be wrong.
+    add_filter('get_sample_permalink_html', function() {
+        return '';
+    });
 }
 
 
