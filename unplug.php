@@ -569,7 +569,7 @@ function get($path, $callback) {
 function get_one() {
     $num_args = func_num_args();
     if ($num_args < 2 || $num_args > 5) {
-        throw new \Exception('get_single expects 2-5 arguments');
+        throw new \Exception('get_one expects 2-5 arguments');
     }
 
     // callback is always next-to-last argument,
