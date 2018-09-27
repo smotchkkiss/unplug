@@ -7,8 +7,7 @@ Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
 
-//   TODO:
-//   - prevent router from running more than once [?]
+// TODO: flush cache on theme deactivation/deletion
 
 namespace unplug;
 
