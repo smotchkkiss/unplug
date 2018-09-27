@@ -426,26 +426,26 @@ function _get_default_router() {
     static $router;
     if (!isset($router)) {
         $router = new \Em4nl\Urouter\Router();
+        $router->_use([
+            'request' => function(&$context) {
+                $site_url = get_site_url();
+                $context['site_url'] = $site_url;
+                // TODO sure that site_url never has a trailing slash?
+                $context['current_url'] = $site_url.$context['path'];
+                $context['theme_url'] = get_template_directory_uri();
+                $context['site_title'] = get_bloginfo();
+                $context['site_description'] = get_bloginfo('description');
+            },
+            'response' => function($context, $response) {
+                $response = make_content_response($response);
+                if (UNPLUG_CACHE && $response->is_cacheable()) {
+                    $cache = Cache::get_instance();
+                    $cache->add($context['path'], $response);
+                }
+                $response->send();
+            },
+        ]);
     }
-    $router->_use([
-        'request' => function(&$context) {
-            $site_url = get_site_url();
-            $context['site_url'] = $site_url;
-            // TODO sure that site_url never has a trailing slash?
-            $context['current_url'] = $site_url.$context['path'];
-            $context['theme_url'] = get_template_directory_uri();
-            $context['site_title'] = get_bloginfo();
-            $context['site_description'] = get_bloginfo('description');
-        },
-        'response' => function($context, $response) {
-            $response = make_content_response($response);
-            if (UNPLUG_CACHE && $response->is_cacheable()) {
-                $cache = Cache::get_instance();
-                $cache->add($context['path'], $response);
-            }
-            $response->send();
-        },
-    ]);
     // TODO set base path if WordPress is installed in subdir
     return $router;
 }
