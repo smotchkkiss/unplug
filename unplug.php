@@ -12,6 +12,10 @@ Author URI: http://unfun.de
 
 namespace unplug;
 
+
+include_once(dirname(__FILE__) . '/urouter.php');
+
+
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -259,293 +263,139 @@ function get_current_url() {
 }
 
 
-class Router {
+function is_acf_active() {
+    return is_plugin_active('advanced-custom-fields-pro/acf.php')
+        || is_plugin_active('advanced-custom-fields/acf.php');
+}
 
-    static function get_default_instance() {
-        static $default_instance = NULL;
-        if ($default_instance === NULL) {
-            $default_instance = new Router();
-        }
-        return $default_instance;
+function enhance_post(&$post, $cb) {
+    if (is_acf_active()) {
+        $post->fields = get_fields($post->ID);
     }
-
-    function __construct() {
-        $this->base_path = '/';
-        $this->get_trie = array('nodes' => array());
-        $this->post_trie = array('nodes' => array());
-        $this->middlewares = array();
-    }
-
-    public function _use($callback) {
-        $this->middlewares[] = $callback;
-    }
-
-    function get($path, $callback) {
-        $path_segments = explode('/', trim($path, '/'));
-        $path_variations = self::get_path_variations($path_segments);
-        foreach ($path_variations as $path_variation) {
-            // completely empty variations don't work with the
-            // trie - the root path needs to be represented by an
-            // array containing an empty string
-            if (!$path_variation) {
-                $path_variation[] = '';
-            }
-            $node = &self::trie_insert($this->get_trie, $path_variation, 0);
-            $node['callback'] = $callback;
+    if ($cb) {
+        $res = call_user_func($cb, $post);
+        if ($res) {
+            $post = $res;
         }
     }
+}
 
-    function post($path, $callback) {
-        $path_segments = explode('/', trim($path, '/'));
-        $path_variations = self::get_path_variations($path_segments);
-        foreach ($path_variations as $path_variation) {
-            // completely empty variations don't work with the
-            // trie - the root path needs to be represented by an
-            // array containing an empty string
-            if (!$path_variation) {
-                $path_variation[] = '';
-            }
-            $node = &self::trie_insert($this->post_trie, $path_variation, 0);
-            $node['callback'] = $callback;
-        }
+
+/**
+ * These 3 are meant as a bit more flexible replacements for
+ * WordPress' functions that also autoload custom fields
+ */
+function get_post($type, $name=NULL, $cb=NULL) {
+    if (!$cb) {
+        $cb = $name;
+        $name = $type;
+        $type = 'post';
+    }
+    $query = array(
+        'post_type' => $type,
+        'posts_per_page' => 1,
+        'name' => $name,
+    );
+    $posts = \get_posts($query);
+    if ($posts) {
+        enhance_post($posts[0], $cb);
+        return $posts[0];
+    }
+}
+
+function get_page($name, $cb=NULL) {
+    return get_post('page', $name, $cb);
+}
+
+// get_posts() [0]
+// get_posts('post') [1]
+// get_posts(function() {}) [1]
+// get_posts('post', function() {}) [2]
+// get_posts(5, 2) [2]
+// get_posts(5, 2, function() {}) [3]
+// get_posts('post', 5, 2, function() {}) [4]
+function get_posts() {
+    $num_args = func_num_args();
+    if ($num_args > 4) {
+        throw new \Exception('get_posts expects 2-4 arguments');
     }
 
-    function catchall($callback) {
-        $this->catchall_callback = $callback;
-    }
-
-    function run() {
-        $current_url = get_current_url();
-        $url_parts = explode('?', $current_url, 2);
-        $path_segments = explode('/', $url_parts[0]);
-        $query = array();
-        if (isset($url_parts[1])) {
-            parse_str($url_parts[1], $query);
-        }
-        $route_trie = $this->get_route_trie();
-
-        $response = $this->execute_matching_route(
-            $route_trie,
-            $path_segments,
-            $query
-        );
-
-        // if $response is already a Response object,
-        // it will be returned untouched
-        $response = make_content_response($response);
-
-        if (UNPLUG_CACHE && $response->is_cacheable()) {
-
-            // serialise path again
-            $path = join('/', $path_segments);
-
-            $cache = Cache::get_instance();
-            $cache->add($path, $response);
-        }
-
-        $response->send();
-    }
-
-    function get_route_trie() {
-        switch ($_SERVER['REQUEST_METHOD']) {
-        case 'GET':
-            return $this->get_trie;
-        case 'POST':
-            return $this->post_trie;
-        default:
-            return array('nodes' => array());
-        }
-    }
-
-    function execute_matching_route($route_trie, $path_segments, $query) {
-        $params = array();
-        $node = self::trie_search($route_trie, $path_segments, 0, $params);
-        $context = $this->get_context($path_segments, $params, $query);
-
-        if ($node && isset($node['callback'])) {
-            $response = $node['callback']($context);
-        }
-
-        // if route was matched, but didn't return a valid
-        // response, we want to execute the global 404, too.
-        if (!isset($response) || $response === NULL) {
-            if (isset($this->catchall_callback)) {
-                $response = not_found(
-                    call_user_func($this->catchall_callback, $context)
-                );
-            } else {
-                $response = not_found();
-            }
-        }
-
-        return $response;
-    }
-
-    function get_context($path_segments, $params, $query) {
-        $site_url = get_site_url();
-        $path = self::reconstruct_path($path_segments);
-        $current_url = $site_url.$path;
-        if (substr($current_url, -1) !== '/') {
-            $current_url .= '/';
-        }
-        $context = array(
-            'path' => $path,
-            'params' => $params,
-            'query' => $query,
-            'site_url' => $site_url,
-            'current_url' => $current_url,
-            'theme_url' => get_template_directory_uri(),
-            'site_title' => get_bloginfo(),
-            'site_description' => get_bloginfo('description'),
-        );
-        return $this->apply_middlewares($context);
-    }
-
-    function apply_middlewares($context) {
-        foreach ($this->middlewares as $middleware) {
-            $res = $middleware($context);
-            if ($res !== NULL) {
-                $context = $res;
-            }
-        }
-        return $context;
-    }
-
-    static function &trie_insert(&$trie, $path_segments, $index) {
-        if (!isset($path_segments[$index])) {
-            return $trie;
-        }
-        $segment = $path_segments[$index];
-
-        if (strlen($segment) > 0 && $segment[0] === '*') {
-            $node = &self::trie_insert_wildcard_node($trie, $segment);
-        } elseif (strlen($segment) > 0 && $segment[0] === ':') {
-            $node = &self::trie_insert_param_node($trie, $segment);
+    if ($num_args === 1) {
+        $arg = func_get_arg(0);
+        if (is_string($arg)) {
+            $type = $arg;
+        } elseif (is_callable($arg)) {
+            $cb = $arg;
         } else {
-            $node = &self::trie_insert_static_node($trie, $segment);
+            throw new \Exception(
+                'single argument must be either post type or callback'
+            );
         }
-        return self::trie_insert($node, $path_segments, $index + 1);
-    }
-
-    static function &trie_insert_wildcard_node(&$trie, $segment) {
-        if (!isset($trie['wildcard_node'])) {
-            $node = array('nodes' => array());
-            $trie['wildcard_node'] = &$node;
+    } elseif ($num_args === 2) {
+        list($fst, $snd) = func_get_args();
+        if (is_string($fst) && is_callable($snd)) {
+            $type = $fst;
+            $cb = $snd;
+        } elseif (is_numeric($fst) && is_numeric($fst)) {
+            $per_page = $fst;
+            $page = $snd;
         } else {
-            $node = &$trie['wildcard_node'];
+            throw new \Exception(
+                'two options for two arguments: either post type and callback'
+                . ' or posts per page and page number'
+            );
         }
-        if (strlen($segment) > 1) {
-            $trie['wildcard_name'] = substr($segment, 1);
+    } elseif ($num_args === 3) {
+        list($fst, $snd, $trd) = func_get_args();
+        if (is_numeric($fst) && is_numeric($snd) && is_callable($trd)) {
+            $per_page = $fst;
+            $page = $snd;
+            $cb = $trd;
         } else {
-            $trie['wildcard_name'] = 'wildcard';
+            throw new \Exception(
+                'when get_posts is called with three arguments, they must be'
+                . ' posts per page, page number and callback'
+            );
         }
-        return $node;
-    }
-
-    static function &trie_insert_param_node(&$trie, $segment) {
-        if (!isset($trie['param_node'])) {
-            $node = array('nodes' => array());
-            $trie['param_node'] = &$node;
+    } elseif ($num_args === 4) {
+        list($fst, $snd, $trd, $fth) = func_get_args();
+        if (is_string($fst) && is_numeric($snd)
+            && is_numeric($trd) && is_callable($fth)) {
+            $type = $fst;
+            $per_page = $snd;
+            $page = $trd;
+            $cb = $fth;
         } else {
-            $node = &$trie['param_node'];
-        }
-        $trie['param_name'] = substr($segment, 1);
-        return $node;
-    }
-
-    static function &trie_insert_static_node(&$trie, $segment) {
-        if(!isset($trie['nodes'][$segment])) {
-            $node = array('nodes' => array());
-            $trie['nodes'][$segment] = &$node;
-        } else {
-            $node = &$trie['nodes'][$segment];
-        }
-        return $node;
-    }
-
-    static function trie_search($trie, $path, $index, &$params) {
-        if (!isset($path[$index])) {
-            return $trie;
-        }
-
-        if (isset($trie['nodes'][$path[$index]])) {
-            return self::trie_search_static_node($trie, $path, $index, $params);
-        } elseif (isset($trie['param_name'])) {
-            return self::trie_search_param_node($trie, $path, $index, $params);
-        } elseif (isset($trie['wildcard_name'])) {
-            return self::trie_search_wildcard_node($trie, $path, $index, $params);
+            throw new \Exception(
+                'get_posts argument order for four arguments is'
+                . ' post type, posts per page, page number, callback'
+            );
         }
     }
 
-    static function trie_search_static_node($trie, $path, $index, &$params) {
-        $node = $trie['nodes'][$path[$index]];
-        return self::trie_search($node, $path, $index + 1, $params);
+    if (!isset($type)) {
+        $type = 'post';
+    }
+    if (!isset($per_page)) {
+        $per_page = -1;
+    }
+    if (!isset($page)) {
+        $page = 1;
+    }
+    if (!isset($cb)) {
+        $cb = NULL;
     }
 
-    static function trie_search_param_node($trie, $path, $index, &$params) {
-        $params[$trie['param_name']] = urldecode($path[$index]);
-        $node = $trie['param_node'];
-        return self::trie_search($node, $path, $index + 1, $params);
+    $query = array(
+        'post_type' => $type,
+        'posts_per_page' => $per_page,
+        'paged' => $page,
+    );
+    $posts = \get_posts($query);
+    foreach ($posts as &$post) {
+        enhance_post($post, $cb);
     }
-
-    static function trie_search_wildcard_node($trie, $path, $index, &$params) {
-        $path = array_slice($path, $index);
-        $path = array_map('urldecode', $path);
-        $params[$trie['wildcard_name']] = join('/', $path);
-        return $trie['wildcard_node'];
-    }
-
-    static function reconstruct_path($path_segments) {
-        $path = join('/', $path_segments);
-        if (!strlen($path) || $path[0] !== '/') {
-            return "/$path";
-        }
-        return $path;
-    }
-
-    static function get_path_variations($path_segments) {
-        $optionals = array_keys(array_filter(
-            $path_segments,
-            function($segment) {
-                return substr($segment, -1) === '?';
-            }
-        ));
-        $permutations = self::get_permutations($optionals);
-
-        $no_question = array_map(function($segment) {
-            if (substr($segment, -1) === '?') {
-                return substr($segment, 0, -1);
-            } else {
-                return $segment;
-            }
-        }, $path_segments);
-
-        $variations = array($no_question);
-        foreach ($permutations as $permutation) {
-            $variation = $no_question;
-            $length_correction = 0;
-            foreach ($permutation as $index) {
-                array_splice($variation, $index - $length_correction, 1);
-                $length_correction++;
-            }
-            $variations[] = $variation;
-        }
-        return $variations;
-    }
-
-    static function get_permutations($input) {
-        $res = array();
-        while ($input) {
-            $input_element = array_shift($input);
-            $solution = array($input_element);
-            $res[] = $solution;
-            foreach ($input as $rest) {
-                $solution = array_merge($solution, array($rest));
-                $res[] = $solution;
-            }
-        }
-        return $res;
-    }
+    return $posts;
 }
 
 
@@ -554,194 +404,51 @@ class Router {
  */
 
 function _use($middleware) {
-    Router::get_default_instance()->_use($middleware);
+    _get_default_router()->_use($middleware);
 }
 
 function get($path, $callback) {
-    Router::get_default_instance()->get($path, $callback);
-}
-
-// function get_one($path, $callback) [2]
-// function get_one($type, $path, $callback) [3]
-// function get_one($type, $param, $path, $callback) [4]
-// function get_one($type, $key, $param, $path, $callback) [5]
-// function get_one([$type, [[$key,] $param,]] $path, $callback)
-function get_one() {
-    $num_args = func_num_args();
-    if ($num_args < 2 || $num_args > 5) {
-        throw new \Exception('get_one expects 2-5 arguments');
-    }
-
-    // callback is always next-to-last argument,
-    // path always comes before it
-    $callback = func_get_arg($num_args - 1);
-    $path = func_get_arg($num_args - 2);
-
-    if ($num_args > 2) {
-        $type = func_get_arg(0);
-    } else {
-        $path_fix_segments = array_values(array_filter(
-            explode('/', $path),
-            function($segment) {
-                return strlen($segment) && $segment[0] !== ':';
-            }
-        ));
-        $type_name = $path_fix_segments[0];
-        foreach (get_post_types(null, 'objects') as $post_type) {
-            if (strtolower($post_type->labels->singular_name) === $type_name
-                || strtolower($post_type->labels->name) === $type_name) {
-                $type = $post_type->name;
-                break;
-            }
-        }
-        if (!isset($type)) {
-            $type = 'post';
-        }
-    }
-
-    if ($num_args > 3) {
-        $param = func_get_arg($num_args - 3);
-    } else {
-        $path_params = array_values(array_filter(
-            explode('/', $path),
-            function($segment) {
-                return substr($segment, 0, 1) === ':';
-            }
-        ));
-        $param = substr($path_params[0], 1);
-    }
-
-    if ($num_args > 4) {
-        $key = func_get_arg(1);
-    } else {
-        $key = $param;
-    }
-
-    Router::get_default_instance()->get(
-        $path,
-        function($context) use ($type, $key, $param, $callback) {
-            $query = array(
-                'post_type' => $type,
-                'posts_per_page' => -1,
-            );
-            if (isset($context['params'][$param])) {
-                $query[$key] = $context['params'][$param];
-            }
-            $posts = get_posts($query);
-            if ($posts) {
-                $context['post'] = $posts[0];
-                return $callback($context);
-            }
-        }
-    );
-}
-
-// function get_many($path, $callback) [2]
-// function get_many($post_type, $path, $callback) [3]
-// function get_many($post_type, $posts_per_page, $path, $callback) [4]
-// function get_many($path, $options, $callback) [3]
-// $options = [
-//     'post_type' => 'post',
-//     'posts_per_page' => 10,
-//     'order' => 'ASC',
-//     'order_by' => 'menu_order',
-//     'param' => 'page',
-// ]
-function get_many() {
-    $num_args = func_num_args();
-    if ($num_args < 2 || $num_args > 4) {
-        throw new \Exception('get_page expects 2-4 arguments');
-    }
-
-    $callback = func_get_arg($num_args - 1);
-
-    $snd_arg = func_get_arg(1);
-    if (is_array($snd_arg)) {
-        $options = $snd_arg;
-    } else {
-        $options = array();
-    }
-
-    if ($num_args === 3 && is_array($snd_arg)) {
-        $path = func_get_arg(0);
-    } else {
-        $path = func_get_arg($num_args - 2);
-    }
-
-    if ($num_args > 2 && !is_array($snd_arg)) {
-        $options['post_type'] = func_get_arg(0);
-    } elseif (!isset($options['post_type'])) {
-        $path_fix_segments = array_values(array_filter(
-            explode('/', $path),
-            function($segment) {
-                return strlen($segment) && $segment[0] !== ':';
-            }
-        ));
-        if ($path_fix_segments) {
-            $type_name = $path_fix_segments[0];
-            foreach (get_post_types(null, 'objects') as $post_type) {
-                if (strtolower($post_type->labels->singular_name) === $type_name
-                    || strtolower($post_type->labels->name) === $type_name) {
-                    $options['post_type'] = $post_type->name;
-                    break;
-                }
-            }
-        }
-        if (!isset($options['post_type'])) {
-            $options['post_type'] = 'post';
-        }
-    }
-
-    if ($num_args > 3) {
-        $options['posts_per_page'] = func_get_arg(1);
-    } elseif (!isset($options['posts_per_page'])) {
-        $options['posts_per_page'] = -1;
-    }
-
-    if (isset($options['param'])) {
-        $param = $options['param'];
-        unset($options['param']);
-    } else {
-        $path_params = array_values(array_filter(
-            explode('/', $path),
-            function($segment) {
-                return substr($segment, 0, 1) === ':';
-            }
-        ));
-        if ($path_params) {
-            $param = substr($path_params[0], 1);
-        } else {
-            $param = NULL;
-        }
-    }
-
-    Router::get_default_instance()->get(
-        $path,
-        function($context) use ($options, $param, $callback) {
-            $query = $options;
-            if ($param && isset($context['params'][$param])) {
-                $page = intval($context['params'][$param]);
-                if (!$page) {
-                    return;
-                }
-                $query['paged'] = $page;
-            }
-            $context['posts'] = get_posts($query);
-            return $callback($context);
-        }
-    );
+    _get_default_router()->get($path, $callback);
 }
 
 function post($path, $callback) {
-    Router::get_default_instance()->post($path, $callback);
+    _get_default_router()->post($path, $callback);
 }
 
 function catchall($callback) {
-    Router::get_default_instance()->catchall($callback);
+    _get_default_router()->catchall($callback);
 }
 
 function dispatch() {
-    Router::get_default_instance()->run();
+    _get_default_router()->run();
+}
+
+function _get_default_router() {
+    static $router;
+    if (!isset($router)) {
+        $router = new \Em4nl\Urouter\Router();
+    }
+    $router->_use([
+        'request' => function(&$context) {
+            $site_url = get_site_url();
+            $context['site_url'] = $site_url;
+            // TODO sure that site_url never has a trailing slash?
+            $context['current_url'] = $site_url.$context['path'];
+            $context['theme_url'] = get_template_directory_uri();
+            $context['site_title'] = get_bloginfo();
+            $context['site_description'] = get_bloginfo('description');
+        },
+        'response' => function($context, $response) {
+            $response = make_content_response($response);
+            if (UNPLUG_CACHE && $response->is_cacheable()) {
+                $cache = Cache::get_instance();
+                $cache->add($context['path'], $response);
+            }
+            $response->send();
+        },
+    ]);
+    // TODO set base path if WordPress is installed in subdir
+    return $router;
 }
 
 
@@ -811,9 +518,7 @@ function unplug($options=array()) {
 
         add_action('save_post', $after_save_post, 20);
 
-        $is_acf_active = is_plugin_active('advanced-custom-fields/acf.php');
-        $is_acf_pro_active = is_plugin_active('advanced-custom-fields-pro/acf.php');
-        if ($is_acf_active || $is_acf_pro_active) {
+        if (is_acf_active()) {
             add_action('acf/save_post', $after_save_post, 20);
         }
     }
