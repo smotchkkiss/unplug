@@ -269,7 +269,7 @@ function is_acf_active() {
 
 function enhance_post(&$post, $cb) {
     if (is_acf_active()) {
-        $post->fields = get_fields($post->ID);
+        $post->fields = get_fields($post);
     }
     if ($cb) {
         $res = call_user_func($cb, $post);
