@@ -272,7 +272,7 @@ function enhance_post(&$post, $cb) {
         $post->fields = get_fields($post);
     }
     if ($cb) {
-        $res = call_user_func($cb, $post);
+        $res = $cb($post);
         if ($res) {
             $post = $res;
         }
@@ -281,7 +281,7 @@ function enhance_post(&$post, $cb) {
 
 
 /**
- * These 3 are meant as a bit more flexible replacements for
+ * These 4 are meant as a bit more flexible replacements for
  * WordPress' functions that also autoload custom fields
  */
 function get_post($type, $name=NULL, $cb=NULL) {
@@ -395,6 +395,35 @@ function get_posts() {
         enhance_post($post, $cb);
     }
     return $posts;
+}
+
+function get_terms($taxonomy='post_tag', $options=NULL, $callback=NULL) {
+    if (is_array($taxonomy)) {
+        $options = $taxonomy;
+        $taxonomy = 'post_tag';
+    }
+
+    if (is_callable($taxonomy)) {
+        $callback = $taxonomy;
+        $taxonomy = 'post_tag';
+    }
+
+    if (is_callable($options)) {
+        $callback = $options;
+        $options = NULL;
+    }
+
+    if ($options) {
+        $query = $options;
+    } else {
+        $query = array();
+    }
+    $query['taxonomy'] = $taxonomy;
+    $terms = \get_terms($query);
+    foreach ($terms as &$term) {
+        enhance_post($term, $callback);
+    }
+    return $terms;
 }
 
 
