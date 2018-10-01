@@ -127,18 +127,11 @@ function unplug($options=array()) {
     $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
 
     if ($allowed) {
-
-        define('UNPLUG_RUN', true);
-
         add_action('do_parse_request', function($do_parse, $wp) {
             $wp->query_vars = array();
             remove_action('template_redirect', 'redirect_canonical');
             return FALSE;
         }, 30, 2);
-
-    } else {
-
-        define('UNPLUG_RUN', false);
     }
 
     // if caching is on, make sure to empty the cache on
