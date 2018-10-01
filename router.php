@@ -66,7 +66,7 @@ class Router {
     function run() {
         $request_path = $this->get_request_path();
         $path_parts = explode('?', $request_path, 2);
-        $path = explode('/', $path_parts[0]);
+        $path = explode('/', trim($path_parts[0], '/'));
         $query = array();
         if (isset($path_parts[1])) {
             parse_str($path_parts[1], $query);
