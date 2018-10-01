@@ -12,7 +12,7 @@ Author URI: http://unfun.de
 namespace unplug;
 
 
-include_once(dirname(__FILE__) . '/urouter.php');
+include_once(dirname(__FILE__) . '/router.php');
 
 
 if (!defined('ABSPATH')) {
@@ -454,7 +454,7 @@ function dispatch() {
 function _get_default_router() {
     static $router;
     if (!isset($router)) {
-        $router = new \Em4nl\Urouter\Router();
+        $router = new Router();
         $router->_use([
             'request' => function(&$context) {
                 $site_url = get_site_url();
