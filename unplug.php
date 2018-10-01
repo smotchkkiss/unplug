@@ -7,8 +7,6 @@ Author: Emanuel Tannert, Wolfgang Schöffel
 Author URI: http://unfun.de
 */
 
-// TODO: flush cache on theme deactivation/deletion
-
 namespace unplug;
 
 
@@ -101,6 +99,7 @@ function unplug($options=array()) {
     if (UNPLUG_CACHE) {
         set_cache_dir($options);
         flush_cache_on_save_post($options);
+        flush_cache_on_switch_theme();
     }
 
     hide_wp_sample_permalink();
@@ -157,6 +156,13 @@ function flush_cache_on_save_post($options) {
     if (is_acf_active()) {
         add_action('acf/save_post', $after_save_post, 20);
     }
+}
+
+
+function flush_cache_on_switch_theme() {
+    add_action('switch_theme', function() {
+        Cache::get_instance()->flush();
+    });
 }
 
 
