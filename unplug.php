@@ -1,11 +1,4 @@
 <?php
-/*
-Plugin Name: unplug
-Description: Unplug WP's assumptive defaults
-Version: 0.0.4
-Author: Emanuel Tannert, Wolfgang Schöffel
-Author URI: http://unfun.de
-*/
 
 namespace unplug;
 
