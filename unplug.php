@@ -101,8 +101,9 @@ function unplug($options=array()) {
 
 function is_frontend_request() {
     $path = _get_default_router()->get_request_path();
-    $is_wp_admin_path = preg_match('/^(admin|login|wp-content)/', $path);
-    if ($is_wp_admin_path) {
+    $wp_path_regex = '/^(admin|login|wp-content|wp-json)/';
+    $is_wp_path = preg_match($wp_path_regex, $path);
+    if ($is_wp_path) {
         return FALSE;
     }
 
