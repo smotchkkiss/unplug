@@ -63,6 +63,27 @@ abstract class ContentResponse extends Response implements ContentResponseMethod
 }
 
 
+class TextResponse extends ContentResponse {
+
+    public function get_extension() {
+
+        return 'txt';
+    }
+
+    public function get_body() {
+
+        return $this->body;
+    }
+
+    public function send() {
+
+        status_header($this->status);
+        header('Content-Type: text/plain');
+        echo $this->body;
+    }
+}
+
+
 class HTMLResponse extends ContentResponse {
 
     public function get_extension() {
