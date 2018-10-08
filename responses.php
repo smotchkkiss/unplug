@@ -157,11 +157,7 @@ function make_content_response($response, $is_cacheable=true, $found=true) {
         throw new \Exception('$found must be boolean');
     }
 
-    if ($found) {
-        $status = '200';
-    } else {
-        $status = '404';
-    }
+    $status = $found ? '200' : '404';
 
     if ($response instanceof Response) {
         return $response;
