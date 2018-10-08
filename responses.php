@@ -78,6 +78,7 @@ class HTMLResponse extends ContentResponse {
     public function send() {
 
         status_header($this->status);
+        header('Content-Type: text/html');
         echo $this->body;
     }
 }
@@ -98,6 +99,7 @@ class JSONResponse extends ContentResponse {
     public function send() {
 
         status_header($this->status);
+        header('Content-Type: application/json');
         wp_send_json($this->body);
     }
 }
