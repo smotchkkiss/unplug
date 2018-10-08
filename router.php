@@ -59,10 +59,6 @@ class Router {
         $this->catchall_callback = $callback;
     }
 
-    // TODO:
-    // run get/post-specific root wildcard if exists, only after
-    // that fall back to catchall
-
     function run() {
         $request_path = $this->get_request_path();
         $path_parts = explode('?', $request_path, 2);
