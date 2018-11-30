@@ -766,12 +766,16 @@ function unplug($options=array()) {
     // catch uploads or static theme assets.
     $path = parse_url(get_current_url(), PHP_URL_PATH);
     $allowed = !preg_match('/^(admin|login|wp-content)/', $path);
+
+    // this line is from https://roots.io/routing-wp-requests/
+    // by Giuseppe Mazzapica (https://github.com/gmazzap)
     $allowed = $allowed && (!is_admin() || (defined('DOING_AJAX') && DOING_AJAX));
 
     if ($allowed) {
 
         define('UNPLUG_RUN', true);
 
+        // this action also from the article by Giuseppe Mazzapica
         add_action('do_parse_request', function($do_parse, $wp) {
             $wp->query_vars = array();
             remove_action('template_redirect', 'redirect_canonical');
