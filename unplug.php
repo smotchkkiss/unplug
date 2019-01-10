@@ -821,6 +821,10 @@ function unplug($options=array()) {
         } else {
             add_action('save_post', $after_save_post, 20);
         }
+
+        add_action('updated_option', function($option_name, $old_value, $value) {
+            $after_save_post();
+        }, 10, 3);
     }
 
     // hide the sample permalink on the edit post page when unplug
