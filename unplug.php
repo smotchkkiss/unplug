@@ -813,12 +813,13 @@ function unplug($options=array()) {
             }
         };
 
-        add_action('save_post', $after_save_post, 20);
-
         $is_acf_active = is_plugin_active('advanced-custom-fields/acf.php');
         $is_acf_pro_active = is_plugin_active('advanced-custom-fields-pro/acf.php');
+
         if ($is_acf_active || $is_acf_pro_active) {
             add_action('acf/save_post', $after_save_post, 20);
+        } else {
+            add_action('save_post', $after_save_post, 20);
         }
     }
 
