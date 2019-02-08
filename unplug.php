@@ -151,9 +151,10 @@ function flush_cache_on_save_post($options) {
         }
     };
 
-    add_action('save_post', $after_save_post, 20);
     if (is_acf_active()) {
         add_action('acf/save_post', $after_save_post, 20);
+    } else {
+        add_action('save_post', $after_save_post, 20);
     }
 }
 
