@@ -91,7 +91,7 @@ function unplug($options=array()) {
 
     if (UNPLUG_CACHE) {
         set_cache_dir($options);
-        flush_cache_on_save_post($options);
+        flush_cache_on_save_post_or_settings($options);
         flush_cache_on_switch_theme();
     }
 
@@ -143,7 +143,7 @@ function set_cache_dir($options) {
 }
 
 
-function flush_cache_on_save_post($options) {
+function flush_cache_on_save_post_or_settings($options) {
     $after_save_post = function() use ($options) {
         Cache::get_instance()->flush();
         if (isset($options['on_save_post'])) {
@@ -156,6 +156,15 @@ function flush_cache_on_save_post($options) {
     } else {
         add_action('save_post', $after_save_post, 20);
     }
+
+    add_action(
+        'updated_option',
+        function($option_name, $old_value, $value) use ($after_save_post) {
+            $after_save_post();
+        },
+        10,
+        3
+    );
 }
 
 
