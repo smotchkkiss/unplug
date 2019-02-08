@@ -107,10 +107,15 @@ function is_frontend_request() {
         return FALSE;
     }
 
-    // TODO why exactly do we handle requests when DOING_AJAX is
-    // defined and true?
-    // maybe the next two lines could be replaced with just
-    // if (is_admin()) {
+    // as to why we have to exclude DOING_AJAX explicitly, see:
+    // https://codex.wordpress.org/AJAX_in_Plugins
+    // ("Both front-end and back-end Ajax requests use
+    // admin-ajax.php so is_admin() will always return true in your
+    // action handling code. When selectively loading your Ajax
+    // script handlers for the front-end and back-end, and using
+    // the is_admin() function, your wp_ajax_(action) and
+    // wp_ajax_nopriv_(action) hooks MUST be inside the is_admin()
+    // === true part.")
     $doing_ajax = defined('DOING_AJAX') && DOING_AJAX;
     if (is_admin() && !$doing_ajax) {
         return FALSE;
