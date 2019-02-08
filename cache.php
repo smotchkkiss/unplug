@@ -1,6 +1,6 @@
 <?php
 
-namespace unplug;
+namespace Em4nl\Unplug;
 
 
 class Cache {

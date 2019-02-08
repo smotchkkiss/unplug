@@ -1,6 +1,6 @@
 <?php
 
-namespace unplug;
+namespace Em4nl\Unplug;
 
 
 include_once dirname(__FILE__) . '/utils.php';
