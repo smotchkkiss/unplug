@@ -822,7 +822,7 @@ function unplug($options=array()) {
             add_action('save_post', $after_save_post, 20);
         }
 
-        add_action('updated_option', function($option_name, $old_value, $value) {
+        add_action('updated_option', function($option_name, $old_value, $value) use ($after_save_post) {
             $after_save_post();
         }, 10, 3);
     }
