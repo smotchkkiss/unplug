@@ -16,19 +16,6 @@ class Cache {
         self::assert_sha256_available();
     }
 
-    function as_plugin() {
-        return array('response' => array($this, 'plugin_response'));
-    }
-
-    function plugin_response($context, $response) {
-        $global_do = defined('UNPLUG_CACHE') && UNPLUG_CACHE;
-        $res_do = !isset($context['no_cache']) || !$context['no_cache'];
-        $do_cache = $global_do && $res_do;
-        if ($do_cache) {
-            $this->add($context['path'], $response);
-        }
-    }
-
     function add($path, $response) {
 
         // TODO
