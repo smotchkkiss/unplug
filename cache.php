@@ -6,7 +6,7 @@ namespace Em4nl\Unplug;
 class Cache {
 
     function __construct($dir, $options=array()) {
-        $this->dir = realpath($dir);
+        $this->dir = $dir;
         // for a list of mime types see
         // https://wiki.selfhtml.org/wiki/MIME-Type/%C3%9Cbersicht
         $this->types = isset($options['types'])
@@ -79,8 +79,8 @@ class Cache {
 
     function save($file_path, $response) {
         // create the cache dir if it doesn't exist
-        if (!file_exists($dir)) {
-            mkdir($dir, 0755);
+        if (!file_exists($this->dir)) {
+            mkdir($this->dir, 0755);
         }
 
         $tmp_path = $file_path . '.' . uniqid('', TRUE) . '.tmp';
