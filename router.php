@@ -89,15 +89,38 @@ class Router {
         $context = $this->get_context($path, $params, $query);
         $response = NULL;
 
-        if ($node && isset($node->callback)) {
-            $response = call_user_func($node->callback, $context);
+        $is_buffer_dirty = TRUE;
+        ob_start();
+
+        try {
+            if ($node && isset($node->callback)) {
+                $response = call_user_func($node->callback, $context);
+            } elseif ($this->catchall_callback) {
+                $response = call_user_func($this->catchall_callback, $context);
+            } else {
+                $response = NULL;
+            }
+
+            if ($response) {
+                // make_content_response will throw if it can't
+                // make sense of $response, which will in turn be
+                // handled by the catch clause below
+                $response = make_content_response($response);
+                $response->send();
+            }
+
+        } catch (Exception $e) {
+            $response = ob_get_clean();
+            $is_buffer_dirty = FALSE;
         }
 
-        if (!isset($response) && $this->catchall_callback) {
-            $response = call_user_func($this->catchall_callback, $context);
+        if ($is_buffer_dirty) {
+            $response = ob_get_clean();
         }
 
         $this->apply_response_middlewares($context, $response);
+
+        echo $response;
     }
 
     function get_context($path, $params, $query) {
@@ -120,7 +143,7 @@ class Router {
         }
     }
 
-    function apply_response_middlewares($context, $response) {
+    function apply_response_middlewares(&$context, &$response) {
         foreach ($this->response_middlewares as $middleware) {
             $res = $middleware($context, $response);
             if ($res !== NULL) {

@@ -1,5 +1,16 @@
 <?php
 
+// TODO
+// - layout cache dir more like it could be a static site
+// - but still cache queries via .htaccess
+// - add option to use wordpress base dir as cache dir
+// - in addition to requests with queries, use .htaccess redirects
+//   for paths that would otherwise overwrite wordpress files
+//   (like xmlrpc.php)
+// - save a list of all cached files somewhere that we can use to
+//   delete them all when the cache is flushed
+// - create a cache pre-filling mechanism close to ssg
+
 namespace Em4nl\Unplug;
 
 
@@ -48,27 +59,19 @@ function _get_default_router() {
     static $router;
     if (!isset($router)) {
         $router = new Router();
-        $router->_use([
-            'request' => function(&$context) {
-                $site_url = get_site_url();
-                while (substr($site_url, -1) === '/') {
-                    $site_url = substr($site_url, 0, -1);
-                }
-                $context['site_url'] = $site_url;
-                $context['current_url'] = $site_url.$context['path'];
-                $context['theme_url'] = get_template_directory_uri();
-                $context['site_title'] = get_bloginfo();
-                $context['site_description'] = get_bloginfo('description');
-            },
-            'response' => function($context, $response) {
-                $response = make_content_response($response);
-                if (UNPLUG_CACHE && $response->is_cacheable()) {
-                    $cache = Cache::get_instance();
-                    $cache->add($context['path'], $response);
-                }
-                $response->send();
-            },
-        ]);
+        $router->_use(function(&$context) {
+            $site_url = get_site_url();
+            while (substr($site_url, -1) === '/') {
+                $site_url = substr($site_url, 0, -1);
+            }
+            $context['site_url'] = $site_url;
+            $context['current_url'] = $site_url.$context['path'];
+            $context['theme_url'] = get_template_directory_uri();
+            $context['site_title'] = get_bloginfo();
+            $context['site_description'] = get_bloginfo('description');
+        });
+        $cache = Cache::get_instance();
+        $router->_use($cache->as_plugin());
     }
     // TODO set base path if WordPress is installed in subdir
     return $router;

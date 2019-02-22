@@ -128,6 +128,19 @@ class Cache {
         return $instance;
     }
 
+    public function as_plugin() {
+        return array('response' => array($this, 'plugin_response'));
+    }
+
+    public function plugin_response($context, $response) {
+        $global_do = defined('UNPLUG_CACHE') && UNPLUG_CACHE;
+        $res_do = !isset($context['no_cache']) || !$context['no_cache'];
+        $do_cache = $global_do && $res_do;
+        if ($do_cache) {
+            $this->add($context['path'], $response);
+        }
+    }
+
     /**
      * @param string $dir
      */
@@ -149,6 +162,12 @@ class Cache {
      * New public interface: cache a new Response
      */
     public function add($path, $response) {
+
+        // TODO
+        // - get filename extension from headers
+        // - if that fails or is unclear, get extension from path
+        // - or maybe the other way round: get extension from path,
+        //   and if it has no extension, use headers. maybe better.
 
         // get the relative path to the cache dir
         $rel_dir = $this->find_rel_dir();
