@@ -58,7 +58,7 @@ function dispatch() {
         _get_default_cache()->end(
             !defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE
         );
-    } else {
+    } elseif (!UNPLUG_CACHE) {
         _get_default_router()->run();
     }
 }
