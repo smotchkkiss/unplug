@@ -108,14 +108,6 @@ class Cache {
         return $rule;
     }
 
-    private static function create_rule_redirect($path, $location, $status) {
-
-        $rule = array();
-        $rule[] = 'RewriteRule ^' . preg_quote($path) . '/?$ '
-                . $location . ' [R=' . $status . ']';
-        return $rule;
-    }
-
     private $dir;
     private $htaccess;
     private $htaccess_path;
@@ -180,11 +172,6 @@ class Cache {
             $file = $rel_dir . '/' . $filename;
 
             $rule = self::create_rule($path, $file);
-
-        } elseif ($response instanceof RedirectResponse) {
-
-            $rule = self::create_rule_redirect(
-                $path, $response->get_location(), $response->get_status());
         }
 
         if (isset($rule) && !$this->rule_exists($rule)) {
