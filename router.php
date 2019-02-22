@@ -69,7 +69,7 @@ class Router {
         }
         $route_trie = $this->get_route_trie();
 
-        return $this->execute_matching_route($route_trie, $path, $query);
+        $this->execute_matching_route($route_trie, $path, $query);
     }
 
     function get_route_trie() {
@@ -107,6 +107,10 @@ class Router {
                 // handled by the catch clause below
                 $response = make_content_response($response);
                 $response->send();
+
+                if (!defined('UNPLUG_DO_CACHE')) {
+                    define('UNPLUG_DO_CACHE', $response->is_cacheable());
+                }
             }
 
         } catch (Exception $e) {

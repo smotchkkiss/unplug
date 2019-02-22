@@ -26,16 +26,7 @@ if (!defined('ABSPATH')) {
 }
 
 
-if (defined('UNPLUG_CACHE') && UNPLUG_CACHE) {
-    if (!defined('UNPLUG_CACHE_DIR')) {
-        throw new \Exception(
-            "UNPLUG_CACHE_DIR is not defined. This usually means you forgot"
-            . " to call Em4nl\Unplug\unplug in your functions.php"
-        );
-    } else {
-        $_unplug_cache = new Cache(UNPLUG_CACHE_DIR);
-    }
-} elseif (!defined('UNPLUG_CACHE')) {
+if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', FALSE);
 }
 
@@ -61,11 +52,12 @@ function catchall($callback) {
 }
 
 function dispatch() {
-    global $_unplug_cache;
-    if (isset($_unplug_cache) && !$_unplug_cache->serve()) {
-        $_unplug_cache->start();
-        $response = _get_default_router()->run();
-        $_unplug_cache->end($response->is_cacheable());
+    if (UNPLUG_CACHE && !_get_default_cache()->serve()) {
+        _get_default_cache()->start();
+        _get_default_router()->run();
+        _get_default_cache()->end(
+            !defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE
+        );
     } else {
         _get_default_router()->run();
     }
@@ -89,6 +81,21 @@ function _get_default_router() {
     }
     // TODO set base path if WordPress is installed in subdir
     return $router;
+}
+
+function _get_default_cache() {
+    static $cache;
+    if (!isset($cache)) {
+        if (!defined('UNPLUG_CACHE_DIR')) {
+            throw new \Exception(
+                "UNPLUG_CACHE_DIR is not defined. This usually means you forgot"
+                . " to call Em4nl\Unplug\unplug in your functions.php"
+            );
+        } else {
+            $cache = new Cache(UNPLUG_CACHE_DIR);
+        }
+    }
+    return $cache;
 }
 
 
@@ -162,12 +169,11 @@ function set_cache_dir($options) {
 
 function flush_cache_on_save_post_or_settings($options) {
     $after_save_post = function() use ($options) {
-        global $_unplug_cache;
-        isset($_unplug_cache) && $_unplug_cache->flush();
+        UNPLUG_CACHE && _get_default_cache()->flush();
         if (isset($options['on_save_post'])) {
             call_user_func(
                 $options['on_save_post'],
-                isset($_unplug_cache) ? $_unplug_cache : NULL
+                UNPLUG_CACHE ? _get_default_cache() : NULL
             );
         }
     };
@@ -191,8 +197,7 @@ function flush_cache_on_save_post_or_settings($options) {
 
 function flush_cache_on_switch_theme() {
     add_action('switch_theme', function() {
-        global $_unplug_cache;
-        isset($_unplug_cache) && $_unplug_cache->flush();
+        UNPLUG_CACHE && _get_default_cache()->flush();
     });
 }
 
