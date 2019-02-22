@@ -1,15 +1,5 @@
 <?php
 
-// TODO
-// - layout cache dir more like it could be a static site
-// - but still cache queries via .htaccess
-// - add option to use wordpress base dir as cache dir
-// - in addition to requests with queries, use .htaccess redirects
-//   for paths that would otherwise overwrite wordpress files
-//   (like xmlrpc.php)
-// - save a list of all cached files somewhere that we can use to
-//   delete them all when the cache is flushed
-// - create a cache pre-filling mechanism close to ssg
 
 namespace Em4nl\Unplug;
 
