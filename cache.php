@@ -18,11 +18,6 @@ class Cache {
                          // 'application/xml' => 'xml',
                          'application/json' => 'json',
                      );
-        // TODO let's see if this option will be necessary or if we
-        // won't be able to identify the type in many cases anyway
-        $this->do_cache_unknown_types = isset($options['do_cache_unknown_types'])
-                                      ? $options['do_cache_unknown_types']
-                                      : FALSE;
         $this->invalidation_callbacks = array();
         self::assert_sha256_available();
     }
@@ -127,26 +122,7 @@ class Cache {
         if ($path_parts_c > 1 && $this->is_valid_extension($last_path_part)) {
             return $last_path_part;
         }
-        // try to get extension from headers
-        foreach (headers_list() as $header) {
-            $matches = array();
-            $is_match = preg_match(
-                '/^content-type:\s*([a-zA-Z0-9.\/+-]+)/i',
-                $header,
-                $matches
-            );
-            if ($is_match) {
-                $mime_type = $matches[1];
-                if (isset($this->types[$mime_type])) {
-                    return $this->types[$mime_type];
-                }
-            }
-        }
-        // return a default or NULL to signal failure
-        if ($this->do_cache_unknown_types) {
-            return 'html';
-        }
-        return NULL;
+        return 'html';
     }
 
     static function assert_sha256_available() {
