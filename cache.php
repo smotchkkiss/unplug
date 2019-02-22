@@ -11,13 +11,7 @@ class Cache {
         // https://wiki.selfhtml.org/wiki/MIME-Type/%C3%9Cbersicht
         $this->types = isset($options['types'])
                      ? $options['types']
-                     : array(
-                         'text/html' => 'html',
-                         // 'application/xhtml+html' => 'html',
-                         'text/xml' => 'xml',
-                         // 'application/xml' => 'xml',
-                         'application/json' => 'json',
-                     );
+                     : array('html', 'xml', 'json');
         $this->invalidation_callbacks = array();
         self::assert_sha256_available();
     }
@@ -105,7 +99,7 @@ class Cache {
     }
 
     function is_valid_extension($ext) {
-        return in_array($ext, array_values($this->types));
+        return in_array($ext, $this->types);
     }
 
     function get_current_uri() {
