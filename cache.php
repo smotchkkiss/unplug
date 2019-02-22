@@ -16,6 +16,28 @@ class Cache {
         self::assert_sha256_available();
     }
 
+    function start() {
+        // TODO start buffering
+    }
+
+    function end() {
+        // TODO end buffering, save response if headers are good
+    }
+
+    function serve($path) {
+        // TODO try to serve cached file and return TRUE, otherwise
+        // (if file doesn't exist) return FALSE
+        return FALSE;
+    }
+
+    function flush() {
+        // delete everything in the cache dir,
+        // but not the cache dir itself.
+        // TODO make empty_cache_directory thread safe
+        // TODO again: why does this have to be thread safe?
+        // $this->empty_cache_directory();
+    }
+
     function add($path, $response) {
 
         // TODO
@@ -27,14 +49,6 @@ class Cache {
         if ($response instanceof ContentResponse) {
             $filename = $this->save($path, $response);
         }
-    }
-
-    function flush() {
-        // delete everything in the cache dir,
-        // but not the cache dir itself.
-        // TODO make empty_cache_directory thread safe
-        // TODO again: why does this have to be thread safe?
-        // $this->empty_cache_directory();
     }
 
     function save($path, $response) {
