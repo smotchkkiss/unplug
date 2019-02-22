@@ -28,6 +28,8 @@ if (!defined('ABSPATH')) {
 
 if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', false);
+} else {
+    $_unplug_cache = new Cache();
 }
 
 
@@ -52,7 +54,14 @@ function catchall($callback) {
 }
 
 function dispatch() {
-    _get_default_router()->run();
+    global $_unplug_cache;
+    if (isset($_unplug_cache) && !$_unplug_cache->serve()) {
+        $_unplug_cache->start();
+        _get_default_router()->run();
+        $_unplug_cache->end();
+    } else {
+        _get_default_router()->run();
+    }
 }
 
 function _get_default_router() {
@@ -70,8 +79,6 @@ function _get_default_router() {
             $context['site_title'] = get_bloginfo();
             $context['site_description'] = get_bloginfo('description');
         });
-        $cache = Cache::get_instance();
-        $router->_use($cache->as_plugin());
     }
     // TODO set base path if WordPress is installed in subdir
     return $router;
@@ -148,9 +155,13 @@ function set_cache_dir($options) {
 
 function flush_cache_on_save_post_or_settings($options) {
     $after_save_post = function() use ($options) {
-        Cache::get_instance()->flush();
+        global $_unplug_cache;
+        isset($_unplug_cache) && $_unplug_cache->flush();
         if (isset($options['on_save_post'])) {
-            $options['on_save_post']($cache);
+            call_user_func(
+                $options['on_save_post'],
+                isset($_unplug_cache) ? $_unplug_cache : NULL
+            );
         }
     };
 
@@ -173,7 +184,8 @@ function flush_cache_on_save_post_or_settings($options) {
 
 function flush_cache_on_switch_theme() {
     add_action('switch_theme', function() {
-        Cache::get_instance()->flush();
+        global $_unplug_cache;
+        isset($_unplug_cache) && $_unplug_cache->flush();
     });
 }
 
