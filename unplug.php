@@ -28,8 +28,13 @@ if (!defined('ABSPATH')) {
 
 if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', false);
+} elseif (!defined('UNPLUG_CACHE_DIR')) {
+    throw new \Exception(
+        "UNPLUG_CACHE_DIR is not defined. This usually means you forgot"
+        . " to call Em4nl\Unplug\unplug in your functions.php"
+    );
 } else {
-    $_unplug_cache = new Cache();
+    $_unplug_cache = new Cache(UNPLUG_CACHE_DIR);
 }
 
 
