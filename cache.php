@@ -194,23 +194,6 @@ class Cache {
         }
     }
 
-    public function add_regexp($regexp, $response) {
-
-        // get the relative path to the cache dir
-        $rel_dir = $this->find_rel_dir();
-
-        $filename = $this->save($regexp, $response);
-        $file = $rel_dir . '/' . $filename;
-
-        $rule = self::create_rule_regexp($regexp, $file);
-
-        if (!$this->rule_exists($rule)) {
-
-            $this->insert_rule($rule);
-            $this->write_htaccess();
-        }
-    }
-
     /**
      * Public interface ii: invalidate the cache
      */
