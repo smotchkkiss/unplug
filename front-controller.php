@@ -35,6 +35,7 @@ function front_controller(
     callable $invalidate=NULL
 ) {
     global $_unplug_cache;
+    define('UNPLUG_FRONT_CONTROLLER', TRUE);
     $_unplug_cache = new Cache($cache_dir);
     if ($invalidate !== NULL) {
         $_unplug_cache->invalidate($invalidate);

@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Em4nl\Unplug;
 
 
@@ -18,6 +17,10 @@ if (!defined('ABSPATH')) {
 
 if (!defined('UNPLUG_CACHE')) {
     define('UNPLUG_CACHE', FALSE);
+}
+
+if (!defined('UNPLUG_FRONT_CONTROLLER')) {
+    define('UNPLUG_FRONT_CONTROLLER', FALSE);
 }
 
 
@@ -42,13 +45,16 @@ function catchall($callback) {
 }
 
 function dispatch() {
-    if (UNPLUG_CACHE && !_get_default_cache()->serve()) {
-        _get_default_cache()->start();
-        _get_default_router()->run();
-        _get_default_cache()->end(
-            !defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE
-        );
-    } elseif (!UNPLUG_CACHE) {
+    if (!UNPLUG_FRONT_CONTROLLER && UNPLUG_CACHE) {
+        $cache = _get_default_cache();
+        if (!$cache->serve()) {
+            $cache->start();
+            _get_default_router()->run();
+            $cache->end(
+                !defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE
+            );
+        }
+    } else {
         _get_default_router()->run();
     }
 }
@@ -74,6 +80,10 @@ function _get_default_router() {
 }
 
 function _get_default_cache() {
+    if (UNPLUG_FRONT_CONTROLLER) {
+        global $_unplug_cache;
+        return $_unplug_cache;
+    }
     static $cache;
     if (!isset($cache)) {
         if (!defined('UNPLUG_CACHE_DIR')) {
