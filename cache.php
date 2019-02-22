@@ -130,7 +130,12 @@ class Cache {
         // try to get extension from headers
         foreach (headers_list() as $header) {
             $matches = array();
-            if (preg_match('/^Content-type:\s*(\S+)/', $header, $matches)) {
+            $is_match = preg_match(
+                '/^content-type:\s*([a-zA-Z0-9.\/+-]+)/i',
+                $header,
+                $matches
+            );
+            if ($is_match) {
                 $mime_type = $matches[1];
                 if (isset($this->types[$mime_type])) {
                     return $this->types[$mime_type];
