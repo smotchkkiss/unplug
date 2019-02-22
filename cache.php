@@ -20,10 +20,16 @@ class Cache {
                      );
         // TODO let's see if this option will be necessary or if we
         // won't be able to identify the type in many cases anyway
-        $this->cache_unknown_types = isset($options['cache_unknown_types'])
-                                   ? $options['cache_unknown_types']
-                                   : FALSE;
+        $this->do_cache_unknown_types = isset($options['do_cache_unknown_types'])
+                                      ? $options['do_cache_unknown_types']
+                                      : FALSE;
+        $this->invalidation_callbacks = array();
         self::assert_sha256_available();
+    }
+
+    function invalidate(callable $callback) {
+        // if a callback returns TRUE, the cache will be skipped!
+        $this->invalidation_callbacks[] = $callback;
     }
 
     function start() {
@@ -43,6 +49,14 @@ class Cache {
         $uri = $this->get_current_uri();
         $extension = $this->get_extension($uri);
         $file_path = $this->get_file_path($uri, $extension);
+        if (!file_exists($file_path)) {
+            return FALSE;
+        }
+        foreach ($this->invalidation_callbacks as $callback) {
+            if (call_user_func($callback, $file_path)) {
+                return FALSE;
+            }
+        }
         $bytes = readfile($file_path);
         if ($bytes !== FALSE) {
             return TRUE;
@@ -124,7 +138,7 @@ class Cache {
             }
         }
         // return a default or NULL to signal failure
-        if ($this->cache_unknown_types) {
+        if ($this->do_cache_unknown_types) {
             return 'html';
         }
         return NULL;
