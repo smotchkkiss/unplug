@@ -57,8 +57,8 @@ function dispatch() {
     global $_unplug_cache;
     if (isset($_unplug_cache) && !$_unplug_cache->serve()) {
         $_unplug_cache->start();
-        _get_default_router()->run();
-        $_unplug_cache->end();
+        $response = _get_default_router()->run();
+        $_unplug_cache->end($response->is_cacheable());
     } else {
         _get_default_router()->run();
     }

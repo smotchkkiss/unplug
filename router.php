@@ -69,7 +69,7 @@ class Router {
         }
         $route_trie = $this->get_route_trie();
 
-        $this->execute_matching_route($route_trie, $path, $query);
+        return $this->execute_matching_route($route_trie, $path, $query);
     }
 
     function get_route_trie() {

@@ -36,10 +36,10 @@ class Cache {
         ob_start();
     }
 
-    function end() {
+    function end($do_cache=TRUE) {
         $response = ob_get_clean();
         echo $response;
-        if (http_response_code() === 200) {
+        if (http_response_code() === 200 && $do_cache) {
             return $this->add($response);
         }
         return FALSE;
