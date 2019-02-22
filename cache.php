@@ -3,6 +3,9 @@
 namespace Em4nl\Unplug;
 
 
+// TODO include legible version of pathname (with illegal chars
+// stripped of course) in filename, before hash?
+
 class Cache {
 
     function __construct($dir, $options=array()) {
