@@ -89,25 +89,6 @@ class Cache {
         return $rule;
     }
 
-    /**
-     * Create a rule (= array of 2 lines for .htaccess)
-     *
-     * @param string $regexp
-     * @param string $file
-     * @returns array
-     */
-    private static function create_rule_regexp($regexp, $file) {
-
-        // this could be written less verbose of course now that there's only
-        // one line, but I don't want to remove the multiline-rule support
-        // right now in case we need it later (or want to add comments to rules,
-        // for example). Multiline rules are also explicitly supported in
-        // rule_exists and insert_rule.
-        $rule = array();
-        $rule[] = 'RewriteRule ' . $regexp . ' ' . $file . '? [L]';
-        return $rule;
-    }
-
     private $dir;
     private $htaccess;
     private $htaccess_path;
