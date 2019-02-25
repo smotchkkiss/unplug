@@ -168,13 +168,14 @@ function sanitize($s) {
 	$find = array(' ', '&', '\r\n', '\n', '+', ',');
 	$res = str_replace ($find, '-', $res);
  
-	//delete and replace rest of special chars
-	$find = array('/[^a-z0-9\-<>]/', '/[\-]+/', '/<[^>]*>/');
-	$repl = array('', '-', '');
-	$res = preg_replace ($find, $repl, $res);
+	// replace rest of special chars
+	$res = preg_replace('/[^a-z0-9\-]/', '-', $res);
  
-	//return the friendly url
-	return $res; 
+    // replace multiple dashes in a row with a single dash
+	$res = preg_replace('/[\-]+/', '-', $res);
+
+    // trim dashes in front end end
+    return trim($res, '-');
 }
 
 function replace_accents($s) {
