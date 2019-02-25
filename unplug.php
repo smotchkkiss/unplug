@@ -29,19 +29,69 @@ if (!defined('UNPLUG_FRONT_CONTROLLER')) {
  */
 
 function _use($middleware) {
-    _get_default_router()->_use($middleware);
+    $request_middlewares = &_get_request_middlewares();
+    $response_middlewares = &_get_response_middlewares();
+    if (is_callable($middleware)) {
+        $request_middlewares[] = $middleware;
+    } else {
+        if (isset($middleware['request'])) {
+            $request_middlewares[] = $middleware['request'];
+        }
+        if (isset($middleware['response'])) {
+            $response_middlewares[] = $middleware['response'];
+        }
+    }
 }
 
 function get($path, $callback) {
-    _get_default_router()->get($path, $callback);
+    _get_default_router()->get($path, function(&$context) use ($callback) {
+        _apply_request_middlewares($context);
+        $response = $callback($context);
+
+        _apply_response_middlewares($context, $response);
+        if ($response) {
+            $response = make_content_response($response);
+            $response->send();
+
+            if (!defined('UNPLUG_DO_CACHE')) {
+                define('UNPLUG_DO_CACHE', $response->is_cacheable());
+            }
+        }
+    });
 }
 
 function post($path, $callback) {
-    _get_default_router()->post($path, $callback);
+    _get_default_router()->post($path, function(&$context) use ($callback) {
+        _apply_request_middlewares($context);
+        $response = $callback($context);
+        _apply_response_middlewares($context, $response);
+
+        if ($response) {
+            $response = make_content_response($response);
+            $response->send();
+
+            if (!defined('UNPLUG_DO_CACHE')) {
+                define('UNPLUG_DO_CACHE', $response->is_cacheable());
+            }
+        }
+    });
 }
 
 function catchall($callback) {
-    _get_default_router()->catchall($callback);
+    _get_default_router()->catchall(function(&$context) use ($callback) {
+        _apply_request_middlewares($context);
+        $response = $callback($context);
+        _apply_response_middlewares($context, $response);
+
+        if ($response) {
+            $response = make_content_response($response);
+            $response->send();
+
+            if (!defined('UNPLUG_DO_CACHE')) {
+                define('UNPLUG_DO_CACHE', $response->is_cacheable());
+            }
+        }
+    });
 }
 
 function dispatch() {
@@ -63,17 +113,6 @@ function _get_default_router() {
     static $router;
     if (!isset($router)) {
         $router = new Router();
-        $router->_use(function(&$context) {
-            $site_url = get_site_url();
-            while (substr($site_url, -1) === '/') {
-                $site_url = substr($site_url, 0, -1);
-            }
-            $context['site_url'] = $site_url;
-            $context['current_url'] = $site_url.$context['path'];
-            $context['theme_url'] = get_template_directory_uri();
-            $context['site_title'] = get_bloginfo();
-            $context['site_description'] = get_bloginfo('description');
-        });
     }
     // TODO set base path if WordPress is installed in subdir
     return $router;
@@ -96,6 +135,51 @@ function _get_default_cache() {
         }
     }
     return $cache;
+}
+
+function &_get_request_middlewares() {
+    static $request_middlewares;
+    if (!isset($request_middlewares)) {
+        $request_middlewares = array();
+        $request_middlewares[] = function(&$context) {
+            $site_url = get_site_url();
+            while (substr($site_url, -1) === '/') {
+                $site_url = substr($site_url, 0, -1);
+            }
+            $context['site_url'] = $site_url;
+            $context['current_url'] = $site_url.$context['path'];
+            $context['theme_url'] = get_template_directory_uri();
+            $context['site_title'] = get_bloginfo();
+            $context['site_description'] = get_bloginfo('description');
+        };
+    }
+    return $request_middlewares;
+}
+
+function &_get_response_middlewares() {
+    static $response_middlewares;
+    if (!isset($response_middlewares)) {
+        $response_middlewares = array();
+    }
+    return $response_middlewares;
+}
+
+function _apply_request_middlewares(&$context) {
+    foreach (_get_request_middlewares() as $middleware) {
+        $res = $middleware($context);
+        if ($res !== NULL) {
+            $context = $res;
+        }
+    }
+}
+
+function _apply_response_middlewares(&$context, &$response) {
+    foreach (_get_response_middlewares() as $middleware) {
+        $res = $middleware($context, $response);
+        if ($res !== NUll) {
+            $response = $res;
+        }
+    }
 }
 
 

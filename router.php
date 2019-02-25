@@ -9,26 +9,11 @@ class Router {
         $this->base_path = '';
         $this->get_trie = new Trie();
         $this->post_trie = new Trie();
-        $this->request_middlewares = array();
-        $this->response_middlewares = array();
         $this->catchall_callback = NULL;
     }
 
     function base($base_path) {
         $this->base_path = trim($base_path, '/');
-    }
-
-    function _use($callback) {
-        if (is_callable($callback)) {
-            $this->request_middlewares[] = $callback;
-        } else {
-            if (isset($callback['request'])) {
-                $this->request_middlewares[] = $callback['request'];
-            }
-            if (isset($callback['response'])) {
-                $this->response_middlewares[] = $callback['response'];
-            }
-        }
     }
 
     function get($path, $callback) {
@@ -87,74 +72,26 @@ class Router {
         $params = array();
         $node = $trie->search($path);
         $context = $this->get_context($path, $params, $query);
-        $response = NULL;
 
-        $is_buffer_dirty = TRUE;
-        ob_start();
-
-        try {
-            if ($node && isset($node->callback)) {
-                $response = call_user_func($node->callback, $context);
-            } elseif ($this->catchall_callback) {
-                $response = call_user_func($this->catchall_callback, $context);
-            } else {
-                $response = NULL;
-            }
-
-            if ($response) {
-                // make_content_response will throw if it can't
-                // make sense of $response, which will in turn be
-                // handled by the catch clause below
-                $response = make_content_response($response);
-                $response->send();
-
-                if (!defined('UNPLUG_DO_CACHE')) {
-                    define('UNPLUG_DO_CACHE', $response->is_cacheable());
-                }
-            }
-
-        } catch (Exception $e) {
-            $response = ob_get_clean();
-            $is_buffer_dirty = FALSE;
+        if ($node && isset($node->callback)) {
+            $callback = $node->callback;
+            $callback($context);
+        } elseif ($this->catchall_callback) {
+            $callback = $this->catchall_callback;
+            $callback($context);
+        } else {
+            // TODO maybe send default 404 response?
         }
-
-        if ($is_buffer_dirty) {
-            $response = ob_get_clean();
-        }
-
-        $this->apply_response_middlewares($context, $response);
-
-        echo $response;
     }
 
     function get_context($path, $params, $query) {
         $request_path = $this->reconstruct_request_path($path);
-        $context = array(
+        return array(
             'path' => $request_path,
             'params' => $params,
             'query' => $query,
         );
-        $this->apply_request_middlewares($context);
-        return $context;
-    }
-
-    function apply_request_middlewares(&$context) {
-        foreach ($this->request_middlewares as $middleware) {
-            $res = $middleware($context);
-            if ($res !== NULL) {
-                $context = $res;
-            }
-        }
-    }
-
-    function apply_response_middlewares(&$context, &$response) {
-        foreach ($this->response_middlewares as $middleware) {
-            $res = $middleware($context, $response);
-            if ($res !== NULL) {
-                $response = $res;
-            }
-        }
-    }
+  }
 
     function reconstruct_request_path($path) {
         $path = join('/', $path);
