@@ -40,7 +40,8 @@ class Cache {
     function serve() {
         $uri = $this->get_current_uri();
         $extension = $this->get_extension($uri);
-        $file_path = $this->get_file_path($uri, $extension);
+        $filename = $this->get_filename($uri, $extension);
+        $file_path = "{$this->dir}/$filename";
         if (!file_exists($file_path)) {
             return FALSE;
         }
@@ -65,24 +66,28 @@ class Cache {
     function add($response) {
         $uri = $this->get_current_uri();
         $extension = $this->get_extension($uri);
-        $file_path = $this->get_file_path($uri, $extension);
-        return $this->save($file_path, $response);
+        $filename = $this->get_filename($uri, $extension);
+        return $this->save($filename, $extension, $response);
     }
 
-    function save($file_path, $response) {
+    function save($filename, $extension, $response) {
         // create the cache dir if it doesn't exist
         if (!file_exists($this->dir)) {
             mkdir($this->dir, 0755);
         }
 
-        $tmp_path = $file_path . '.' . uniqid('', TRUE) . '.tmp';
+        $temp_dir = sys_get_temp_dir();
+        $unique_id = uniqid('', TRUE);
+        $temp_path = "$temp_dir/$filename.$unique_id.$extension";
 
-        $bytes = file_put_contents($tmp_path, $response);
+        $file_path = "{$this->dir}/$filename";
+
+        $bytes = file_put_contents($temp_path, $response);
         if ($bytes === FALSE) {
             return FALSE;
         }
 
-        $rename_success = rename($tmp_path, $file_path);
+        $rename_success = rename($temp_path, $file_path);
         if (!$rename_success) {
             return FALSE;
         }
@@ -90,11 +95,14 @@ class Cache {
         return TRUE;
     }
 
-    function get_file_path($uri, $extension) {
+    function get_filename($uri, $extension) {
         $hash = hash('sha256', $uri);
-        $filename = $hash . '.' . $extension;
-        $file_path = $this->dir . '/' . $filename;
-        return $file_path;
+        $slug = sanitize($uri);
+        if ($slug !== '') {
+            $slug .= '.';
+        }
+        $filename = $slug . $hash . '.' . $extension;
+        return $filename;
     }
 
     function empty_cache_directory() {
@@ -142,4 +150,36 @@ class Cache {
             }
         }
     }
+}
+
+
+// https://web.archive.org/web/20130208144021/http://neo22s.com/slug
+function sanitize($s) {
+	// everything to lower and no spaces begin or end
+	$res = strtolower(trim($s));
+ 
+	//replace accent characters, depends your language is needed
+	$res = replace_accents($res);
+ 
+	// decode html maybe needed if there's html I normally don't use this
+	//$res = html_entity_decode($res, ENT_QUOTES, 'UTF8');
+ 
+	// adding - for spaces and union characters
+	$find = array(' ', '&', '\r\n', '\n', '+', ',');
+	$res = str_replace ($find, '-', $res);
+ 
+	//delete and replace rest of special chars
+	$find = array('/[^a-z0-9\-<>]/', '/[\-]+/', '/<[^>]*>/');
+	$repl = array('', '-', '');
+	$res = preg_replace ($find, $repl, $res);
+ 
+	//return the friendly url
+	return $res; 
+}
+
+function replace_accents($s) {
+    //replace for accents catalan spanish and more
+    $a = array('À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Æ', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 'Í', 'Î', 'Ï', 'Ð', 'Ñ', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ø', 'Ù', 'Ú', 'Û', 'Ü', 'Ý', 'ß', 'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', 'ø', 'ù', 'ú', 'û', 'ü', 'ý', 'ÿ', 'Ā', 'ā', 'Ă', 'ă', 'Ą', 'ą', 'Ć', 'ć', 'Ĉ', 'ĉ', 'Ċ', 'ċ', 'Č', 'č', 'Ď', 'ď', 'Đ', 'đ', 'Ē', 'ē', 'Ĕ', 'ĕ', 'Ė', 'ė', 'Ę', 'ę', 'Ě', 'ě', 'Ĝ', 'ĝ', 'Ğ', 'ğ', 'Ġ', 'ġ', 'Ģ', 'ģ', 'Ĥ', 'ĥ', 'Ħ', 'ħ', 'Ĩ', 'ĩ', 'Ī', 'ī', 'Ĭ', 'ĭ', 'Į', 'į', 'İ', 'ı', 'Ĳ', 'ĳ', 'Ĵ', 'ĵ', 'Ķ', 'ķ', 'Ĺ', 'ĺ', 'Ļ', 'ļ', 'Ľ', 'ľ', 'Ŀ', 'ŀ', 'Ł', 'ł', 'Ń', 'ń', 'Ņ', 'ņ', 'Ň', 'ň', 'ŉ', 'Ō', 'ō', 'Ŏ', 'ŏ', 'Ő', 'ő', 'Œ', 'œ', 'Ŕ', 'ŕ', 'Ŗ', 'ŗ', 'Ř', 'ř', 'Ś', 'ś', 'Ŝ', 'ŝ', 'Ş', 'ş', 'Š', 'š', 'Ţ', 'ţ', 'Ť', 'ť', 'Ŧ', 'ŧ', 'Ũ', 'ũ', 'Ū', 'ū', 'Ŭ', 'ŭ', 'Ů', 'ů', 'Ű', 'ű', 'Ų', 'ų', 'Ŵ', 'ŵ', 'Ŷ', 'ŷ', 'Ÿ', 'Ź', 'ź', 'Ż', 'ż', 'Ž', 'ž', 'ſ', 'ƒ', 'Ơ', 'ơ', 'Ư', 'ư', 'Ǎ', 'ǎ', 'Ǐ', 'ǐ', 'Ǒ', 'ǒ', 'Ǔ', 'ǔ', 'Ǖ', 'ǖ', 'Ǘ', 'ǘ', 'Ǚ', 'ǚ', 'Ǜ', 'ǜ', 'Ǻ', 'ǻ', 'Ǽ', 'ǽ', 'Ǿ', 'ǿ'); 
+    $b = array('A', 'A', 'A', 'A', 'A', 'A', 'AE', 'C', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I', 'D', 'N', 'O', 'O', 'O', 'O', 'O', 'O', 'U', 'U', 'U', 'U', 'Y', 's', 'a', 'a', 'a', 'a', 'a', 'a', 'ae', 'c', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i', 'n', 'o', 'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'y', 'y', 'A', 'a', 'A', 'a', 'A', 'a', 'C', 'c', 'C', 'c', 'C', 'c', 'C', 'c', 'D', 'd', 'D', 'd', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'G', 'g', 'G', 'g', 'G', 'g', 'G', 'g', 'H', 'h', 'H', 'h', 'I', 'i', 'I', 'i', 'I', 'i', 'I', 'i', 'I', 'i', 'IJ', 'ij', 'J', 'j', 'K', 'k', 'L', 'l', 'L', 'l', 'L', 'l', 'L', 'l', 'l', 'l', 'N', 'n', 'N', 'n', 'N', 'n', 'n', 'O', 'o', 'O', 'o', 'O', 'o', 'OE', 'oe', 'R', 'r', 'R', 'r', 'R', 'r', 'S', 's', 'S', 's', 'S', 's', 'S', 's', 'T', 't', 'T', 't', 'T', 't', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'W', 'w', 'Y', 'y', 'Y', 'Z', 'z', 'Z', 'z', 'Z', 'z', 's', 'f', 'O', 'o', 'U', 'u', 'A', 'a', 'I', 'i', 'O', 'o', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'A', 'a', 'AE', 'ae', 'O', 'o'); 
+    return str_replace($a, $b, $s);
 }
