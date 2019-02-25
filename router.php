@@ -209,7 +209,7 @@ class Router {
     }
 
     function get_request_path() {
-        $req_path = trim($_SERVER['REQUEST_URI'], '/');
+        $req_path = trim(urldecode($_SERVER['REQUEST_URI']), '/');
         if ($this->base_path && strpos($req_path, $this->base_path) === 0) {
             $req_path = trim(substr($req_path, strlen($this->base_path)), '/');
         }
