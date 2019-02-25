@@ -114,7 +114,7 @@ class Cache {
     }
 
     function get_current_uri() {
-        return $_SERVER['REQUEST_URI'];
+        return urldecode($_SERVER['REQUEST_URI']);
     }
 
     function get_extension($uri) {
