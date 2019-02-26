@@ -66,15 +66,13 @@ function catchall($callback) {
 function dispatch() {
     if (!UNPLUG_FRONT_CONTROLLER && UNPLUG_CACHE) {
         $cache = _get_default_cache();
-        if (!$cache->serve()) {
+        if (!($served_from_cache = $cache->serve())) {
             $cache->start();
-            _get_default_router()->run();
-            $cache->end(
-                !defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE
-            );
         }
-    } else {
-        _get_default_router()->run();
+    }
+    _get_default_router()->run();
+    if (isset($cache) && !$served_from_cache) {
+        $cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
     }
 }
 
