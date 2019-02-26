@@ -30,17 +30,7 @@ if (!defined('UNPLUG_FRONT_CONTROLLER')) {
 
 function _use($middleware) {
     $request_middlewares = &_get_request_middlewares();
-    $response_middlewares = &_get_response_middlewares();
-    if (is_callable($middleware)) {
-        $request_middlewares[] = $middleware;
-    } else {
-        if (isset($middleware['request'])) {
-            $request_middlewares[] = $middleware['request'];
-        }
-        if (isset($middleware['response'])) {
-            $response_middlewares[] = $middleware['response'];
-        }
-    }
+    $request_middlewares[] = $middleware;
 }
 
 function get($path, $callback) {
@@ -48,7 +38,6 @@ function get($path, $callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
 
-        _apply_response_middlewares($context, $response);
         if ($response) {
             $response = make_content_response($response);
             $response->send();
@@ -64,7 +53,6 @@ function post($path, $callback) {
     _get_default_router()->post($path, function(&$context) use ($callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
-        _apply_response_middlewares($context, $response);
 
         if ($response) {
             $response = make_content_response($response);
@@ -81,7 +69,6 @@ function catchall($callback) {
     _get_default_router()->catchall(function(&$context) use ($callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
-        _apply_response_middlewares($context, $response);
 
         if ($response) {
             $response = make_content_response($response);
@@ -156,28 +143,11 @@ function &_get_request_middlewares() {
     return $request_middlewares;
 }
 
-function &_get_response_middlewares() {
-    static $response_middlewares;
-    if (!isset($response_middlewares)) {
-        $response_middlewares = array();
-    }
-    return $response_middlewares;
-}
-
 function _apply_request_middlewares(&$context) {
     foreach (_get_request_middlewares() as $middleware) {
         $res = $middleware($context);
         if ($res !== NULL) {
             $context = $res;
-        }
-    }
-}
-
-function _apply_response_middlewares(&$context, &$response) {
-    foreach (_get_response_middlewares() as $middleware) {
-        $res = $middleware($context, $response);
-        if ($res !== NUll) {
-            $response = $res;
         }
     }
 }
