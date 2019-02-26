@@ -78,6 +78,10 @@ function send_content_response($response, $is_cacheable=TRUE, $found=TRUE) {
 
 
 function send_redirect($location, $is_permanent=TRUE) {
+    if (defined('UNPLUG_RESPONSE_SENT') && UNPLUG_RESPONSE_SENT) {
+        return;
+    }
+
     if ($location[0] !== '/') {
         $location = '/' . $location;
     }
@@ -87,12 +91,14 @@ function send_redirect($location, $is_permanent=TRUE) {
     $location = get_site_url() . $location;
 
     if ($is_permanent) {
-        $this->status = '301';
+        $status = '301';
     } else {
-        $this->status = '302';
+        $status = '302';
     }
 
     _set_do_cache_if_undefined(FALSE);
+
+    define('UNPLUG_RESPONSE_SENT', TRUE);
 
     wp_redirect($location, $status);
 }
