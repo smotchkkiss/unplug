@@ -2,6 +2,7 @@
 
 namespace Em4nl\Unplug;
 
+// TODO make WordPress independent
 
 function _check_send_args($body, $is_cacheable, $status) {
     if (!is_string($body) && !is_array($body)) {
