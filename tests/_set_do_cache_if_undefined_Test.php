@@ -28,4 +28,24 @@ class _set_do_cache_if_undefined_Test extends TestCase {
         _set_do_cache_if_undefined(true);
         $this->assertFalse(UNPLUG_DO_CACHE);
     }
+
+    function test_set_do_cache_if_undefined3() {
+        $this->assertFalse(defined('UNPLUG_DO_CACHE'));
+        define('UNPLUG_DO_CACHE', true);
+        $this->assertTrue(defined('UNPLUG_DO_CACHE'));
+        $this->assertTrue(UNPLUG_DO_CACHE);
+        _set_do_cache_if_undefined(false);
+        $this->assertTrue(defined('UNPLUG_DO_CACHE'));
+        $this->assertTrue(UNPLUG_DO_CACHE);
+    }
+
+    function test_set_do_cache_if_undefined4() {
+        $this->assertFalse(defined('UNPLUG_DO_CACHE'));
+        define('UNPLUG_DO_CACHE', false);
+        $this->assertTrue(defined('UNPLUG_DO_CACHE'));
+        $this->assertFalse(UNPLUG_DO_CACHE);
+        _set_do_cache_if_undefined(true);
+        $this->assertTrue(defined('UNPLUG_DO_CACHE'));
+        $this->assertFalse(UNPLUG_DO_CACHE);
+    }
 }
