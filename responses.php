@@ -79,6 +79,13 @@ function send_content_response($response, $is_cacheable=TRUE, $found=TRUE) {
 
 
 function send_redirect($location, $is_permanent=TRUE) {
+    if (!is_string($location)) {
+        throw new \Exception('$location must be a string');
+    }
+    if (!is_bool($is_permanent)) {
+        throw new \Exception('$is_permanent must be a boolean');
+    }
+
     if (defined('UNPLUG_RESPONSE_SENT') && UNPLUG_RESPONSE_SENT) {
         return;
     }
