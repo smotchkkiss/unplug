@@ -37,14 +37,8 @@ function get($path, $callback) {
     _get_default_router()->get($path, function(&$context) use ($callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
-
         if ($response) {
-            $response = make_content_response($response);
-            $response->send();
-
-            if (!defined('UNPLUG_DO_CACHE')) {
-                define('UNPLUG_DO_CACHE', $response->is_cacheable());
-            }
+            make_content_response($response);
         }
     });
 }
@@ -53,14 +47,8 @@ function post($path, $callback) {
     _get_default_router()->post($path, function(&$context) use ($callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
-
         if ($response) {
-            $response = make_content_response($response);
-            $response->send();
-
-            if (!defined('UNPLUG_DO_CACHE')) {
-                define('UNPLUG_DO_CACHE', $response->is_cacheable());
-            }
+            make_content_response($response);
         }
     });
 }
@@ -69,14 +57,8 @@ function catchall($callback) {
     _get_default_router()->catchall(function(&$context) use ($callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
-
         if ($response) {
-            $response = make_content_response($response);
-            $response->send();
-
-            if (!defined('UNPLUG_DO_CACHE')) {
-                define('UNPLUG_DO_CACHE', $response->is_cacheable());
-            }
+            make_content_response($response);
         }
     });
 }
