@@ -4,7 +4,7 @@
 // it expects ABSPATH to be defined (and set to the WordPress
 // base directory). We're setting it to a 'mock' folder inside the
 // tests dir here, where we keep mock versions of the WordPress
-// files unplug tries wants include.
+// files unplug tries to include.
 if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/mock/');
 }
