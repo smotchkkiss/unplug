@@ -38,7 +38,7 @@ function get($path, $callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
         if ($response) {
-            make_content_response($response);
+            send_content_response($response);
         }
     });
 }
@@ -48,7 +48,7 @@ function post($path, $callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
         if ($response) {
-            make_content_response($response);
+            send_content_response($response);
         }
     });
 }
@@ -58,7 +58,7 @@ function catchall($callback) {
         _apply_request_middlewares($context);
         $response = $callback($context);
         if ($response) {
-            make_content_response($response);
+            send_content_response($response);
         }
     });
 }

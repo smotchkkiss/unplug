@@ -3,132 +3,98 @@
 namespace Em4nl\Unplug;
 
 
-interface Response {
-    function send();
-}
-
-
-abstract class ContentResponse implements Response {
-
-    function __construct($body, $is_cacheable, $status) {
-        if (!is_string($body) && !is_array($body)) {
-            throw new \Exception('Response $body must be a string or an array');
-        }
-        if (!is_bool($is_cacheable)) {
-            throw new \Exception('Response $is_cacheable must be a boolean');
-        }
-        if (!is_string($status)) {
-            throw new \Exception('Response $status must be a string');
-        }
-
-        $this->body = $body;
-        $this->status = $status;
-
-        $this->send();
-
-        if (!defined('UNPLUG_DO_CACHE')) {
-            define('UNPLUG_DO_CACHE', $is_cacheable);
-        }
+function _check_send_args($body, $is_cacheable, $status) {
+    if (!is_string($body) && !is_array($body)) {
+        throw new \Exception('$body must be a string or an array');
+    }
+    if (!is_bool($is_cacheable)) {
+        throw new \Exception('$is_cacheable must be a boolean');
+    }
+    if (!is_string($status)) {
+        throw new \Exception('$status must be a string');
     }
 }
 
 
-class TextResponse extends ContentResponse {
-
-    function send() {
-        status_header($this->status);
-        header('Content-Type: text/plain');
-        echo $this->body;
+function _set_do_cache_if_undefined($is_cacheable) {
+    if (!defined('UNPLUG_DO_CACHE')) {
+        define('UNPLUG_DO_CACHE', $is_cacheable);
     }
 }
 
 
-class HTMLResponse extends ContentResponse {
-
-    function send() {
-        status_header($this->status);
-        header('Content-Type: text/html');
-        echo $this->body;
-    }
+function send_content_helper($body, $is_cacheable, $status, $content_type) {
+    _check_send_args($body, $is_cacheable, $status);
+    _set_do_cache_if_undefined($is_cacheable);
+    status_header($status);
+    header("Content-Type: $content_type");
+    define('UNPLUG_RESPONSE_SENT', TRUE);
 }
 
 
-class JSONResponse extends ContentResponse {
-
-    function send() {
-        status_header($this->status);
-        header('Content-Type: application/json');
-        wp_send_json($this->body);
-    }
+function send_text($body, $is_cacheable, $status) {
+    send_content_helper($body, $is_cacheable, $status, 'text/plain');
+    echo $body;
 }
 
 
-// TODO we need a way to trigger this, manually returning new
-// unplug\XMLResponses is not very convenient. HTML and JSON are
-// distinguished by the type of the data given. can we detect
-// if a string is HTML or XML somehow?!
-class XMLResponse extends ContentResponse {
-
-    function send() {
-        status_header($this->status);
-        header('Content-Type: text/xml');
-        echo $this->body;
-    }
+function send_html($body, $is_cacheable, $status) {
+    send_content_helper($body, $is_cacheable, $status, 'text/html');
+    echo $body;
 }
 
 
-function make_content_response($response, $is_cacheable=true, $found=true) {
+function send_json($body, $is_cacheable, $status) {
+    send_content_helper($body, $is_cacheable, $status, 'application/json');
+    wp_send_json($body);
+}
 
+
+function send_xml($body, $is_cacheable, $status) {
+    send_content_helper($body, $is_cacheable, $status, 'text/xml');
+    echo $body;
+}
+
+
+function send_content_response($response, $is_cacheable=TRUE, $found=TRUE) {
     if (!is_bool($found)) {
         throw new \Exception('$found must be boolean');
     }
 
     $status = $found ? '200' : '404';
 
-    if ($response instanceof Response) {
-        return $response;
+    if (defined('UNPLUG_RESPONSE_SENT') && UNPLUG_RESPONSE_SENT) {
+        return;
     }
+
     if (is_string($response)) {
-        return new HTMLResponse($response, $is_cacheable, $status);
+        send_html($response, $is_cacheable, $status);
+    } elseif (is_array($response)) {
+        send_json($response, $is_cacheable, $status);
+    } else {
+        throw new \Exception('$response must be string or array');
     }
-    if (is_array($response)) {
-        return new JSONResponse($response, $is_cacheable, $status);
-    }
-    throw new \Exception('$response must be string, array or Response');
 }
 
 
-class RedirectResponse implements Response {
+function send_redirect($location, $is_permanent=TRUE) {
+    if ($location[0] !== '/') {
+        $location = '/' . $location;
+    }
+    if ($location[strlen($location) - 1] !== '/') {
+        $location .= '/';
+    }
+    $location = get_site_url() . $location;
 
-    function __construct($location, $is_permanent=true) {
-        $this->location = self::normalise_location($location);
-
-        if ($is_permanent) {
-            $this->status = '301';
-        } else {
-            $this->status = '302';
-        }
-
-        $this->send();
-
-        if (!defined('UNPLUG_DO_CACHE')) {
-            define('UNPLUG_DO_CACHE', FALSE);
-        }
+    if ($is_permanent) {
+        $this->status = '301';
+    } else {
+        $this->status = '302';
     }
 
-    static function normalise_location($location) {
-        if ($location[0] !== '/') {
-            $location = '/' . $location;
-        }
-        if ($location[strlen($location) - 1] !== '/') {
-            $location .= '/';
-        }
-        return get_site_url() . $location;
-    }
+    _set_do_cache_if_undefined(FALSE);
 
-    function send() {
-        wp_redirect($this->location, $this->status);
-    }
+    wp_redirect($location, $status);
 }
 
 
@@ -137,17 +103,17 @@ class RedirectResponse implements Response {
  */
 
 function ok($response='', $is_cacheable=true) {
-    return make_content_response($response, $is_cacheable);
+    send_content_response($response, $is_cacheable);
 }
 
-function not_found($response='', $is_cacheable=false) {
-    return make_content_response($response, $is_cacheable, false);
+function not_found($response='') {
+    send_content_response($response, FALSE, FALSE);
 }
 
-function moved_permanently($location='/', $is_cacheable=true) {
-    return new RedirectResponse($location);
+function moved_permanently($location='/') {
+    send_redirect($location);
 }
 
-function found($location='/', $is_cacheable=true) {
-    return new RedirectResponse($location, false);
+function found($location='/') {
+    send_redirect($location, false);
 }
