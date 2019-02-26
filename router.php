@@ -79,8 +79,6 @@ class Router {
         } elseif ($this->catchall_callback) {
             $callback = $this->catchall_callback;
             $callback($context);
-        } else {
-            // TODO maybe send default 404 response?
         }
     }
 
