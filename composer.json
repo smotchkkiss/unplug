@@ -1,5 +1,9 @@
 {
     "require-dev": {
         "phpunit/phpunit": "^7.2"
+    },
+    "require": {
+        "em4nl/urouter": "^0.0.3",
+        "em4nl/ucache": "^0.0.1"
     }
 }

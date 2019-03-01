@@ -2,12 +2,11 @@
 
 namespace Em4nl\Unplug;
 
+require_once __DIR__ . '/vendor/autoload.php';
 
-include_once dirname(__FILE__) . '/utils.php';
-include_once dirname(__FILE__) . '/router.php';
-include_once dirname(__FILE__) . '/responses.php';
-include_once dirname(__FILE__) . '/cache.php';
-include_once dirname(__FILE__) . '/wp_functions.php';
+require_once dirname(__FILE__) . '/utils.php';
+require_once dirname(__FILE__) . '/responses.php';
+require_once dirname(__FILE__) . '/wp_functions.php';
 
 
 if (!defined('ABSPATH')) {
@@ -34,7 +33,8 @@ function _use($middleware) {
 }
 
 function get($path, $callback) {
-    _get_default_router()->get($path, function(&$context) use ($callback) {
+    _get_default_router()->get($path, function() use ($callback) {
+        $context = array('params' => func_get_args());
         _apply_request_middlewares($context);
         $response = $callback($context);
         if ($response) {
@@ -44,7 +44,8 @@ function get($path, $callback) {
 }
 
 function post($path, $callback) {
-    _get_default_router()->post($path, function(&$context) use ($callback) {
+    _get_default_router()->post($path, function() use ($callback) {
+        $context = array('params' => func_get_args());
         _apply_request_middlewares($context);
         $response = $callback($context);
         if ($response) {
@@ -54,7 +55,8 @@ function post($path, $callback) {
 }
 
 function catchall($callback) {
-    _get_default_router()->catchall(function(&$context) use ($callback) {
+    _get_default_router()->catchall(function() use ($callback) {
+        $context = array('params' => array());
         _apply_request_middlewares($context);
         $response = $callback($context);
         if ($response) {
@@ -79,7 +81,7 @@ function dispatch() {
 function _get_default_router() {
     static $router;
     if (!isset($router)) {
-        $router = new Router();
+        $router = new \Em4nl\U\Router();
     }
     // TODO set base path if WordPress is installed in subdir
     return $router;
@@ -98,7 +100,7 @@ function _get_default_cache() {
                 . " to call Em4nl\Unplug\unplug in your functions.php"
             );
         } else {
-            $cache = new Cache(UNPLUG_CACHE_DIR);
+            $cache = new \Em4nl\U\Cache(UNPLUG_CACHE_DIR);
         }
     }
     return $cache;
