@@ -56,6 +56,7 @@ function post($path, $callback) {
 
 function catchall($callback) {
     _get_default_router()->catchall(function() use ($callback) {
+        define('UNPLUG_DO_CACHE', FALSE);
         $context = array('params' => array());
         _apply_request_middlewares($context);
         $response = $callback($context);
