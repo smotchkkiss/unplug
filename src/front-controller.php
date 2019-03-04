@@ -9,12 +9,12 @@
 //
 // <?php
 //
-// include_once __DIR__ . '/wp-content/themes/testtheme/plugins/front-controller.php';
+// require_once __DIR__ . '/wp-content/themes/testtheme/plugins/front-controller.php';
 //
-// Em4nl\Unplug\front_controller(
-//     __DIR__ . '/_unplug_cache',
-//     __DIR__ . '/wp-index.php'
-// );
+// Em4nl\Unplug\front_controller([
+//     'cache_dir' => __DIR__ . '/_unplug_cache',
+//     'wp_index_php' => __DIR__ . '/wp-index.php',
+// ]);
 //
 // Note that this bypasses WordPress completely, which means that
 // it also ignores UNPLUG_CACHE constant defined in wp-config.php
@@ -28,15 +28,17 @@ namespace Em4nl\Unplug;
 
 
 if (!function_exists('Em4nl\Unplug\front_controller')) {
-    function front_controller(
-        $cache_dir,
-        $wp_index_php,
-        callable $invalidate=NULL
-    ) {
+    function front_controller(Array $options=array()) {
         global $_unplug_cache;
         define('UNPLUG_FRONT_CONTROLLER', TRUE);
+        if (!isset($options['cache_dir'])) {
+            throw new \Exception('cache_dir has to be defined!');
+        }
+        if (!isset($options['wp_index_php'])) {
+            throw new \Exception('wp_index_php has to be defined!');
+        }
         $_unplug_cache = new \Em4nl\U\Cache($cache_dir);
-        if ($invalidate !== NULL) {
+        if (isset($options['invalidate'])) {
             $_unplug_cache->invalidate($invalidate);
         }
         $served_from_cache = $_unplug_cache->serve();
