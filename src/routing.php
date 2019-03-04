@@ -124,7 +124,8 @@ if (!function_exists('Em4nl\Unplug\_get_request_middlewares')) {
                     $site_url = substr($site_url, 0, -1);
                 }
                 $context['site_url'] = $site_url;
-                $context['current_url'] = $site_url.$context['path'];
+                $context['path'] = $_SERVER['REQUEST_URI'];
+                $context['current_url'] = $site_url . $context['path'];
                 $context['theme_url'] = get_template_directory_uri();
                 $context['site_title'] = get_bloginfo();
                 $context['site_description'] = get_bloginfo('description');
