@@ -24,7 +24,7 @@
             "src/unplug.php",
             "src/routing.php",
             "src/responses.php",
-            "src/front-controller.php",
+            "src/front_controller.php",
             "src/utils.php",
             "src/wp_functions.php"
         ]

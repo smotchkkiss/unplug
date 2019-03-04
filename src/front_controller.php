@@ -9,7 +9,7 @@
 //
 // <?php
 //
-// require_once __DIR__ . '/wp-content/themes/testtheme/plugins/front-controller.php';
+// require_once __DIR__ . '/wp-content/themes/testtheme/vendor/autoload.php';
 //
 // Em4nl\Unplug\front_controller([
 //     'cache_dir' => __DIR__ . '/_unplug_cache',
