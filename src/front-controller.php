@@ -27,23 +27,23 @@
 namespace Em4nl\Unplug;
 
 
-include_once dirname(__FILE__) . '/cache.php';
-
-function front_controller(
-    $cache_dir,
-    $wp_index_php,
-    callable $invalidate=NULL
-) {
-    global $_unplug_cache;
-    define('UNPLUG_FRONT_CONTROLLER', TRUE);
-    $_unplug_cache = new Cache($cache_dir);
-    if ($invalidate !== NULL) {
-        $_unplug_cache->invalidate($invalidate);
-    }
-    $served_from_cache = $_unplug_cache->serve();
-    if (!$served_from_cache) {
-        $_unplug_cache->start();
-        include_once $wp_index_php;
-        $_unplug_cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
+if (!function_exists('Em4nl\Unplug\front_controller')) {
+    function front_controller(
+        $cache_dir,
+        $wp_index_php,
+        callable $invalidate=NULL
+    ) {
+        global $_unplug_cache;
+        define('UNPLUG_FRONT_CONTROLLER', TRUE);
+        $_unplug_cache = new \Em4nl\U\Cache($cache_dir);
+        if ($invalidate !== NULL) {
+            $_unplug_cache->invalidate($invalidate);
+        }
+        $served_from_cache = $_unplug_cache->serve();
+        if (!$served_from_cache) {
+            $_unplug_cache->start();
+            include_once $wp_index_php;
+            $_unplug_cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
+        }
     }
 }
