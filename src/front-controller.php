@@ -37,14 +37,14 @@ if (!function_exists('Em4nl\Unplug\front_controller')) {
         if (!isset($options['wp_index_php'])) {
             throw new \Exception('wp_index_php has to be defined!');
         }
-        $_unplug_cache = new \Em4nl\U\Cache($cache_dir);
+        $_unplug_cache = new \Em4nl\U\Cache($options['cache_dir']);
         if (isset($options['invalidate'])) {
-            $_unplug_cache->invalidate($invalidate);
+            $_unplug_cache->invalidate($options['invalidate']);
         }
         $served_from_cache = $_unplug_cache->serve();
         if (!$served_from_cache) {
             $_unplug_cache->start();
-            include_once $wp_index_php;
+            include_once $options['wp_index_php'];
             $_unplug_cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
         }
     }
