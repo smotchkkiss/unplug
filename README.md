@@ -51,8 +51,8 @@ you'll need (especially if using Twig).
 
 use Em4nl\Unplug;
 
-// Basically, just use the _use, get and post functions to set up
-// your frontend routes.
+// Basically, just use the `_use`, `get` and `post` functions to
+// set up your frontend routes.
 
 Unplug\_use(function(&$context) {
     // _use callbacks will be called on all routes. Use this to add
