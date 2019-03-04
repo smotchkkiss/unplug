@@ -54,95 +54,93 @@ use Em4nl\Unplug;
 // Basically, just use the `_use`, `get` and `post` functions to
 // set up your frontend routes.
 
+// _use callbacks will be called on all routes. Use this to add
+// stuff to your context that you always need. For example a global
+// image for sharing your website on facebook and twitter, loaded
+// from an ACF field:
 Unplug\_use(function(&$context) {
-    // _use callbacks will be called on all routes. Use this to add
-    // stuff to your context that you always need. For example a
-    // global image for sharing your website on facebook and
-    // twitter, loaded from an ACF field:
     $context['share_image'] = get_field('share_image', 'options');
 });
 
+// You can have as many _use callbacks as you like. Another example
+// would be to add a menu
 Unplug\_use(function(&$context) {
-    // You can have as many _use callbacks as you like. Another
-    // example would be to add a menu
     $context['menu'] = array(/* TODO load this from WordPress */);
 });
 
+// If you don't want to mutate the $context array directly, you can
+// also return a changed copy.
+// If you want to have the Twig template engine available on every
+// route, why not store it in the $context
 Unplug\_use(function($context) {
-    // If you don't want to mutate the $context array directly, you
-    // can also return a changed copy.
-    // If you want to have the Twig template engine available on
-    // every route, why not store it in the $context
     $twig_loader = new Twig_Loader_Filesystem(
         get_template_directory() . '/templates'
     );
-    $context['twig'] = new Twig_Environment($twig_loader, [
+    $twig = new Twig_Environment($twig_loader, [
         'debug' => true,
     ]);
-    $context['twig']->addExtension(new Twig_Extension_Debug());
+    $twig->addExtension(new Twig_Extension_Debug());
+    $context['twig'] = $twig;
     return $context;
 });
 
+// The index route. Return a string to send html. Especially useful
+// in conjunction with Twig
 Unplug\get('/', function($context) {
-    // The index route. Return a string to send html. Especially
-    // useful in conjunction with Twig
     return $context['twig']->render('home.twig', $context);
 });
 
+// Or just echo your response
 Unplug\get('/hi-world', function($context) {
-    // Or just echo your response
     echo "Hello world!";
 });
 
+// Return an array to automatically send a json response
 Unplug\get('/api', function($context) {
-    // Return an array to automatically send a json response
     return ['error' => NULL];
 });
 
+// Routes can have parameters; the parameter values are collected
+// into the $context['params'] array
 Unplug\get('/:param', function($context) {
-    // Routes can have parameters; the parameter values are
-    // collected into the $context['params'] array
     return "Hi, {$context['params'][0]}!";
 });
 
+// Routes can have optional path segments. To find out wether
+// they're present, examine $context['path']
 Unplug\get('/menu/open?', function($context) {
-    // Routes can have optional path segments. To find out wether
-    // they're present, examine $context['path']
     return "You're visiting {$context['path']}";
 });
 
+// Routes can also have wildcards that match any number of segments
+// The content of the wildcard is also exposed in
+// $context['params']
 Unplug\get('/test/*', function($context) {
-    // Routes can also have wildcards that match any number of
-    // segments. The content of the wildcard is also exposed in
-    // $context['params']
     return "The wildcard path: {$context['params'][0]}";
 });
 
+// You can also have POST routes. Unplug doesn't take care of the
+// posted data for you; just use the $_POST array for that
+// (Same goes for query parameters in $_GET)
 Unplug\post('/form', function($context) {
-    // You can also have POST routes. Unplug doesn't take care of
-    // the posted data for you; just use the $_POST array for that
-    // (Same goes for query parameters in $_GET)
+    // ...
 });
 
+// If you want to return something other than a '200 OK' (or a 200
+// _explicitly_), you can use the `Unplug\ok`, `Unplug\not_found`,
+// `Unplug\moved_permanently` and `Unplug\found` functions.
 function my_404($context) {
-    // If you want to return something other than a '200 OK' (or a
-    // 200 _explicitly_), you can use the `Unplug\ok`,
-    // `Unplug\not_found`, `Unplug\moved_permanently` and
-    // `Unplug\found` functions.
-    return Unplug\not_found(
-        $context['twig']->render('error_404.twig', $context)
-    );
+    Unplug\not_found($context['twig']->render('error_404.twig', $context));
 }
 
+// Sometimes you have a parametrised route where not all
+// parameter values are valid. This can be handled e.g. like this
 Unplug\get('/post/:title', function($context) {
-    // Sometimes you have a parametrised route where not all
-    // parameter values are valid. This can be handled e.g. like
-    // this
     $context['post'] = my_get_post($context['params'][0]);
     if ($context['post']) {
         return $context['twig']->render('post.twig', $context);
     } else {
-        return my_404($context);
+        my_404($context);
     }
 });
 
