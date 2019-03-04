@@ -1,6 +1,6 @@
 # Unplug
 
-A WordPress microframework
+WordPress microframework
 
 ## Installation
 
