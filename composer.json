@@ -1,6 +1,6 @@
 {
     "name": "em4nl/unplug",
-    "description": "A microframework for WordPress themes",
+    "description": "WordPress microframework",
     "keywords": ["wp", "WordPress", "framework"],
     "homepage": "https://github.com/em4nl/unplug",
     "license": "MIT",
