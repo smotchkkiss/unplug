@@ -7,14 +7,23 @@
 // else, e.g. wp-index.php. create a new index.php that looks about
 // so:
 //
+// ```php
 // <?php
 //
 // require_once __DIR__ . '/wp-content/themes/testtheme/vendor/autoload.php';
 //
-// Em4nl\Unplug\front_controller([
-//     'cache_dir' => __DIR__ . '/_unplug_cache',
-//     'wp_index_php' => __DIR__ . '/wp-index.php',
-// ]);
+// Em4nl\Unplug\front_controller(__DIR__ . '/wp-index.php');
+// ```
+//
+// Also, you'll need an additional unplug-config.php file in your
+// WordPress root dir with these two definitions in it:
+//
+// ```php
+// <?php
+//
+// define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
+// define('UNPLUG_CACHE_ON', TRUE);
+// ```
 //
 // Note that this bypasses WordPress completely
 //

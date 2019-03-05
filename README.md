@@ -174,22 +174,30 @@ following code in it:
 
 require_once __DIR__ . '/wp-content/themes/<name-of-your-theme>/vendor/autoload.php';
 
-Em4nl\Unplug\front_controller([
-    'cache_dir' => __DIR__ . '/_unplug_cache',
-    'wp_index_php' => __DIR__ . '/wp-index.php',
-]);
+Em4nl\Unplug\front_controller(__DIR__ . '/wp-index.php');
 ```
 
 This will serve files from the cache and only load WordPress if a
 file isn't found or invalidated by a custom function given through
-the optional `invalidate` parameter.
+the optional `invalidate** parameter.
 
-If you need to disable the cache (temporarily) you'll have to
-switch out the `index.php` again.
+**Read on, you need that file, too**
 
-```sh
-mv index.php unplug-index.php
-mv wp-index.php index.php
+### unplug-config.php
+
+While it won't hurt to have this file if you're not using the
+custom front controller, you *need* to have it if you do. You can
+put this in the WordPres root next to the `index.php` or in any
+other directory really as long as it's above the `vendor` dir where
+you installed unplug.
+
+At the moment, you'll need to have these two definitions in there:
+
+```php
+<?php
+
+define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
+define('UNPLUG_CACHE_ON', TRUE); // set to FALSE to disable the cache
 ```
 
 ## Development
