@@ -18,7 +18,6 @@ if (!function_exists('Em4nl\Unplug\unplug')) {
         }
 
         if (UNPLUG_CACHE_ON) {
-            set_cache_dir($options);
             flush_cache_on_save_post_or_settings($options);
             flush_cache_on_switch_theme();
         }
@@ -63,17 +62,6 @@ if (!function_exists('Em4nl\Unplug\prevent_wp_default_query')) {
             remove_action('template_redirect', 'redirect_canonical');
             return FALSE;
         }, 30, 2);
-    }
-}
-
-
-if (!function_exists('Em4nl\Unplug\set_cache_dir')) {
-    function set_cache_dir($options) {
-        if (isset($options['cache_dir'])) {
-            define('UNPLUG_CACHE_DIR', $options['cache_dir']);
-        } else {
-            define('UNPLUG_CACHE_DIR', __DIR__ . '/_unplug_cache');
-        }
     }
 }
 
