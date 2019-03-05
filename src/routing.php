@@ -6,15 +6,6 @@ namespace Em4nl\Unplug;
 require_once __DIR__ . '/utils.php';
 
 
-if (!defined('UNPLUG_CACHE_ON')) {
-    define('UNPLUG_CACHE_ON', FALSE);
-}
-
-if (!defined('UNPLUG_FRONT_CONTROLLER')) {
-    define('UNPLUG_FRONT_CONTROLLER', FALSE);
-}
-
-
 /**
  * Convenience interface to the default Router instance
  */
@@ -68,7 +59,8 @@ if (!function_exists('Em4nl\Unplug\catchall')) {
 
 if (!function_exists('Em4nl\Unplug\dispatch')) {
     function dispatch() {
-        if (!UNPLUG_FRONT_CONTROLLER && UNPLUG_CACHE_ON) {
+        if (!(defined('UNPLUG_FRONT_CONTROLLER') && UNPLUG_FRONT_CONTROLLER)
+            && UNPLUG_CACHE_ON) {
             $cache = _get_default_cache();
             if (!($served_from_cache = $cache->serve())) {
                 $cache->start();
@@ -94,20 +86,13 @@ if (!function_exists('Em4nl\Unplug\_get_default_router')) {
 
 if (!function_exists('Em4nl\Unplug\_get_default_cache')) {
     function _get_default_cache() {
-        if (UNPLUG_FRONT_CONTROLLER) {
+        if (defined('UNPLUG_FRONT_CONTROLLER') && UNPLUG_FRONT_CONTROLLER) {
             global $_unplug_cache;
             return $_unplug_cache;
         }
         static $cache;
         if (!isset($cache)) {
-            if (!defined('UNPLUG_CACHE_DIR')) {
-                throw new \Exception(
-                    "UNPLUG_CACHE_DIR is not defined. This usually means you "
-                    . "forgot to call Em4nl\Unplug\unplug in your functions.php"
-                );
-            } else {
-                $cache = new \Em4nl\U\Cache(UNPLUG_CACHE_DIR);
-            }
+            $cache = new \Em4nl\U\Cache(UNPLUG_CACHE_DIR);
         }
         return $cache;
     }

@@ -16,9 +16,7 @@
 //     'wp_index_php' => __DIR__ . '/wp-index.php',
 // ]);
 //
-// Note that this bypasses WordPress completely, which means that
-// it also ignores UNPLUG_CACHE_ON constant defined in
-// wp-config.php
+// Note that this bypasses WordPress completely
 //
 // (Instead of renaming index.php, you might also e.g. change the
 // default redirect rule in your .htaccess)
@@ -29,18 +27,12 @@ namespace Em4nl\Unplug;
 
 
 if (!function_exists('Em4nl\Unplug\front_controller')) {
-    function front_controller(Array $options=array()) {
+    function front_controller($wp_index_php, $invalidate=NULL) {
         global $_unplug_cache;
         define('UNPLUG_FRONT_CONTROLLER', TRUE);
-        if (!isset($options['cache_dir'])) {
-            throw new \Exception('cache_dir has to be defined!');
-        }
-        if (!isset($options['wp_index_php'])) {
-            throw new \Exception('wp_index_php has to be defined!');
-        }
-        $_unplug_cache = new \Em4nl\U\Cache($options['cache_dir']);
-        if (isset($options['invalidate'])) {
-            $_unplug_cache->invalidate($options['invalidate']);
+        $_unplug_cache = new \Em4nl\U\Cache(UNPLUG_CACHE_DIR);
+        if ($invalidate) {
+            $_unplug_cache->invalidate($invalidate);
         }
         $served_from_cache = $_unplug_cache->serve();
         if (!$served_from_cache) {

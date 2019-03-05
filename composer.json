@@ -21,6 +21,7 @@
     },
     "autoload": {
         "files": [
+            "src/configure.php",
             "src/unplug.php",
             "src/routing.php",
             "src/responses.php",
