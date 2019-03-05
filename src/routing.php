@@ -6,8 +6,8 @@ namespace Em4nl\Unplug;
 require_once __DIR__ . '/utils.php';
 
 
-if (!defined('UNPLUG_CACHE')) {
-    define('UNPLUG_CACHE', FALSE);
+if (!defined('UNPLUG_CACHE_ON')) {
+    define('UNPLUG_CACHE_ON', FALSE);
 }
 
 if (!defined('UNPLUG_FRONT_CONTROLLER')) {
@@ -68,7 +68,7 @@ if (!function_exists('Em4nl\Unplug\catchall')) {
 
 if (!function_exists('Em4nl\Unplug\dispatch')) {
     function dispatch() {
-        if (!UNPLUG_FRONT_CONTROLLER && UNPLUG_CACHE) {
+        if (!UNPLUG_FRONT_CONTROLLER && UNPLUG_CACHE_ON) {
             $cache = _get_default_cache();
             if (!($served_from_cache = $cache->serve())) {
                 $cache->start();

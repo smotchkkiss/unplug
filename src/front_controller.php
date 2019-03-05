@@ -17,7 +17,8 @@
 // ]);
 //
 // Note that this bypasses WordPress completely, which means that
-// it also ignores UNPLUG_CACHE constant defined in wp-config.php
+// it also ignores UNPLUG_CACHE_ON constant defined in
+// wp-config.php
 //
 // (Instead of renaming index.php, you might also e.g. change the
 // default redirect rule in your .htaccess)

@@ -17,7 +17,7 @@ if (!function_exists('Em4nl\Unplug\unplug')) {
             prevent_wp_default_query();
         }
 
-        if (UNPLUG_CACHE) {
+        if (UNPLUG_CACHE_ON) {
             set_cache_dir($options);
             flush_cache_on_save_post_or_settings($options);
             flush_cache_on_switch_theme();
@@ -81,11 +81,11 @@ if (!function_exists('Em4nl\Unplug\set_cache_dir')) {
 if (!function_exists('Em4nl\Unplug\flush_cache_on_save_post_or_settings')) {
     function flush_cache_on_save_post_or_settings($options) {
         $after_save_post = function() use ($options) {
-            UNPLUG_CACHE && _get_default_cache()->flush();
+            UNPLUG_CACHE_ON && _get_default_cache()->flush();
             if (isset($options['on_save_post'])) {
                 call_user_func(
                     $options['on_save_post'],
-                    UNPLUG_CACHE ? _get_default_cache() : NULL
+                    UNPLUG_CACHE_ON ? _get_default_cache() : NULL
                 );
             }
         };
@@ -111,7 +111,7 @@ if (!function_exists('Em4nl\Unplug\flush_cache_on_save_post_or_settings')) {
 if (!function_exists('Em4nl\Unplug\flush_cache_on_switch_theme')) {
     function flush_cache_on_switch_theme() {
         add_action('switch_theme', function() {
-            UNPLUG_CACHE && _get_default_cache()->flush();
+            UNPLUG_CACHE_ON && _get_default_cache()->flush();
         });
     }
 }
