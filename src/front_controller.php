@@ -37,7 +37,7 @@ if (!function_exists('Em4nl\Unplug\front_controller')) {
         $served_from_cache = $_unplug_cache->serve();
         if (!$served_from_cache) {
             $_unplug_cache->start();
-            include_once $options['wp_index_php'];
+            include_once $wp_index_php;
             $_unplug_cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
         }
     }
