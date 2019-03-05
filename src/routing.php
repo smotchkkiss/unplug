@@ -59,16 +59,24 @@ if (!function_exists('Em4nl\Unplug\catchall')) {
 
 if (!function_exists('Em4nl\Unplug\dispatch')) {
     function dispatch() {
-        if (!(defined('UNPLUG_FRONT_CONTROLLER') && UNPLUG_FRONT_CONTROLLER)
-            && UNPLUG_CACHE_ON) {
+        if (UNPLUG_CACHE_ON &&
+            !(defined('UNPLUG_FRONT_CONTROLLER') && UNPLUG_FRONT_CONTROLLER)) {
+            // if caching is on, and the front_controller wasn't
+            // used, then we want to do the whole thing, including
+            // caching, now
             $cache = _get_default_cache();
-            if (!($served_from_cache = $cache->serve())) {
+            $served_from_cache = $cache->serve();
+            if (!$served_from_cache) {
                 $cache->start();
+                _get_default_router()->run();
+                $cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
             }
-        }
-        _get_default_router()->run();
-        if (isset($cache) && !$served_from_cache) {
-            $cache->end(!defined('UNPLUG_DO_CACHE') || UNPLUG_DO_CACHE);
+        } else {
+            // if either we don't want to use caching, or the
+            // front_controller was indeed used, which means that
+            // it decided to still load up WordPress, we just run
+            // the router
+            _get_default_router()->run();
         }
     }
 }
