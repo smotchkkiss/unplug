@@ -4,8 +4,9 @@ namespace Em4nl\Unplug;
 
 
 if (!defined('UNPLUG_CACHE_DIR') || !defined('UNPLUG_CACHE_ON')) {
+    $dir = __FILE__;
     do {
-        $dir = dirname(__FILE__);
+        $dir = dirname($dir);
         $path = $dir . '/unplug-config.php';
         $exists = file_exists($path);
     } while (!$exists && $dir !== '/');
