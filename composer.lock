@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "484285f0faf6a47c40e46eeedea40689",
+    "content-hash": "55b7bfc7356ed2a19706a3d445780474",
     "packages": [
         {
             "name": "em4nl/ucache",
-            "version": "v0.0.2",
+            "version": "v0.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/em4nl/ucache.git",
-                "reference": "a4763b40bf6d9a3247e5c99d67876e210a61aa1f"
+                "reference": "2419f9dc4528565bfdd7b4e393268aba7f5d1817"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/em4nl/ucache/zipball/a4763b40bf6d9a3247e5c99d67876e210a61aa1f",
-                "reference": "a4763b40bf6d9a3247e5c99d67876e210a61aa1f",
+                "url": "https://api.github.com/repos/em4nl/ucache/zipball/2419f9dc4528565bfdd7b4e393268aba7f5d1817",
+                "reference": "2419f9dc4528565bfdd7b4e393268aba7f5d1817",
                 "shasum": ""
             },
             "require": {
@@ -50,7 +50,7 @@
                 "cache",
                 "caching"
             ],
-            "time": "2019-03-04T09:08:55+00:00"
+            "time": "2019-03-06T12:52:17+00:00"
         },
         {
             "name": "em4nl/uresponse",
@@ -1557,6 +1557,8 @@
     "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
+    "platform": {
+        "php": ">=5.6"
+    },
     "platform-dev": []
 }
