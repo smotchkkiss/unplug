@@ -18,8 +18,10 @@ if (!defined('UNPLUG_CACHE_ON')) {
 }
 
 if (!defined('UNPLUG_CACHE_DIR')) {
-    define(
-        'UNPLUG_CACHE_DIR',
-        sys_get_temp_dir() . '/unplug_cache.' . uniqid()
-    );
+    $temp_dir = sys_get_temp_dir();
+    if ($temp_dir[strlen($temp_dir) - 1] !== '/') {
+        $temp_dir .= '/';
+    }
+    $temp_dir .= 'unplug_cache.' . uniqid();
+    define('UNPLUG_CACHE_DIR', $temp_dir);
 }
