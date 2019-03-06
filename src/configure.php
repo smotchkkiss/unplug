@@ -24,4 +24,5 @@ if (!defined('UNPLUG_CACHE_DIR')) {
     }
     $temp_dir .= 'unplug_cache.' . uniqid();
     define('UNPLUG_CACHE_DIR', $temp_dir);
+    unset($temp_dir);
 }
