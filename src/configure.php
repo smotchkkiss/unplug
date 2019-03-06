@@ -8,11 +8,8 @@ if (!defined('UNPLUG_CACHE_DIR') || !defined('UNPLUG_CACHE_ON')) {
     do {
         $dir = dirname($dir);
         $path = $dir . '/unplug-config.php';
-        $exists = file_exists($path);
+        $exists = @include $path;
     } while (!$exists && $dir !== '/');
-    if ($exists) {
-        require_once $path;
-    }
     unset($dir, $path, $exists);
 }
 
