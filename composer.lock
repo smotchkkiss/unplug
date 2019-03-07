@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "55b7bfc7356ed2a19706a3d445780474",
+    "content-hash": "464290a3f2348f1ffc2da8e8f9ece511",
     "packages": [
         {
             "name": "em4nl/ucache",
@@ -100,16 +100,16 @@
         },
         {
             "name": "em4nl/urouter",
-            "version": "v0.0.3",
+            "version": "v0.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/em4nl/urouter.git",
-                "reference": "2dd5b5b44c8e8f00eb356b838f9f770c5f2eeedc"
+                "reference": "81f3f4ef3971dd87781c461d94452d2d31e9da17"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/em4nl/urouter/zipball/2dd5b5b44c8e8f00eb356b838f9f770c5f2eeedc",
-                "reference": "2dd5b5b44c8e8f00eb356b838f9f770c5f2eeedc",
+                "url": "https://api.github.com/repos/em4nl/urouter/zipball/81f3f4ef3971dd87781c461d94452d2d31e9da17",
+                "reference": "81f3f4ef3971dd87781c461d94452d2d31e9da17",
                 "shasum": ""
             },
             "require": {
@@ -142,7 +142,7 @@
                 "router",
                 "routing"
             ],
-            "time": "2019-02-28T15:39:27+00:00"
+            "time": "2019-03-07T11:12:19+00:00"
         }
     ],
     "packages-dev": [

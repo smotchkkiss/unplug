@@ -19,8 +19,7 @@ if (!function_exists('Em4nl\Unplug\_use')) {
 
 if (!function_exists('Em4nl\Unplug\get')) {
     function get($path, $callback) {
-        _get_default_router()->get($path, function() use ($callback) {
-            $context = array('params' => func_get_args());
+        _get_default_router()->get($path, function($context) use ($callback) {
             _apply_request_middlewares($context);
             $response = $callback($context);
             if ($response) {
@@ -32,8 +31,7 @@ if (!function_exists('Em4nl\Unplug\get')) {
 
 if (!function_exists('Em4nl\Unplug\post')) {
     function post($path, $callback) {
-        _get_default_router()->post($path, function() use ($callback) {
-            $context = array('params' => func_get_args());
+        _get_default_router()->post($path, function($context) use ($callback) {
             _apply_request_middlewares($context);
             $response = $callback($context);
             if ($response) {
@@ -45,9 +43,8 @@ if (!function_exists('Em4nl\Unplug\post')) {
 
 if (!function_exists('Em4nl\Unplug\catchall')) {
     function catchall($callback) {
-        _get_default_router()->catchall(function() use ($callback) {
+        _get_default_router()->catchall(function($context) use ($callback) {
             define('UNPLUG_DO_CACHE', FALSE);
-            $context = array('params' => array());
             _apply_request_middlewares($context);
             $response = $callback($context);
             if ($response) {
@@ -117,7 +114,6 @@ if (!function_exists('Em4nl\Unplug\_get_request_middlewares')) {
                     $site_url = substr($site_url, 0, -1);
                 }
                 $context['site_url'] = $site_url;
-                $context['path'] = $_SERVER['REQUEST_URI'];
                 $context['current_url'] = $site_url . $context['path'];
                 $context['theme_url'] = get_template_directory_uri();
                 $context['site_title'] = get_bloginfo();
