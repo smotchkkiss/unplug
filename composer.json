@@ -16,7 +16,7 @@
     "require": {
         "php": ">=5.6",
         "em4nl/urouter": "^0.0.4",
-        "em4nl/ucache": "^0.0.3",
+        "em4nl/ucache": "^0.0.4",
         "em4nl/uresponse": "^0.0.1"
     },
     "autoload": {

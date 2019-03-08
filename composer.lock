@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "464290a3f2348f1ffc2da8e8f9ece511",
+    "content-hash": "7b97ff5a72f937d0f2de423e28a666a5",
     "packages": [
         {
             "name": "em4nl/ucache",
-            "version": "v0.0.3",
+            "version": "v0.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/em4nl/ucache.git",
-                "reference": "2419f9dc4528565bfdd7b4e393268aba7f5d1817"
+                "reference": "87d8a3f745d1467dd07110b5102a47e5fafe169a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/em4nl/ucache/zipball/2419f9dc4528565bfdd7b4e393268aba7f5d1817",
-                "reference": "2419f9dc4528565bfdd7b4e393268aba7f5d1817",
+                "url": "https://api.github.com/repos/em4nl/ucache/zipball/87d8a3f745d1467dd07110b5102a47e5fafe169a",
+                "reference": "87d8a3f745d1467dd07110b5102a47e5fafe169a",
                 "shasum": ""
             },
             "require": {
@@ -50,7 +50,7 @@
                 "cache",
                 "caching"
             ],
-            "time": "2019-03-06T12:52:17+00:00"
+            "time": "2019-03-08T09:28:57+00:00"
         },
         {
             "name": "em4nl/uresponse",
