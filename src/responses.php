@@ -45,25 +45,25 @@ if (!function_exists('Em4nl\Unplug\send_redirect')) {
 
 
 if (!function_exists('Em4nl\Unplug\send_text')) {
-    function send_text($body, $is_cacheable, $status) {
+    function send_text($body, $is_cacheable=TRUE, $status='200') {
         \Em4nl\U\send_text($body, $is_cacheable, $status);
     }
 }
 
 if (!function_exists('Em4nl\Unplug\send_html')) {
-    function send_html($body, $is_cacheable, $status) {
+    function send_html($body, $is_cacheable=TRUE, $status='200') {
         \Em4nl\U\send_html($body, $is_cacheable, $status);
     }
 }
 
 if (!function_exists('Em4nl\Unplug\send_json')) {
-    function send_json($body, $is_cacheable, $status) {
+    function send_json($body, $is_cacheable=TRUE, $status='200') {
         \Em4nl\U\send_json($body, $is_cacheable, $status);
     }
 }
 
 if (!function_exists('Em4nl\Unplug\send_xml')) {
-    function send_xml($body, $is_cacheable, $status) {
+    function send_xml($body, $is_cacheable=TRUE, $status='200') {
         \Em4nl\U\send_xml($body, $is_cacheable, $status);
     }
 }
