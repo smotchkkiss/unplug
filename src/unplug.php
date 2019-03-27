@@ -92,6 +92,9 @@ if (!function_exists('Em4nl\Unplug\flush_cache_on_save_post_or_settings')) {
             10,
             3
         );
+
+        // flush cache when menu order is changed
+        add_action('wp_ajax_update-menu-order', $after_save_post);
     }
 }
 
