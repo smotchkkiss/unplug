@@ -27,11 +27,6 @@ if (!function_exists('Em4nl\Unplug\enhance_post')) {
  */
 if (!function_exists('Em4nl\Unplug\get_post')) {
     function get_post($type, $name=NULL, $cb=NULL) {
-        if (!$cb) {
-            $cb = $name;
-            $name = $type;
-            $type = 'post';
-        }
         $query = array(
             'post_type' => $type,
             'posts_per_page' => 1,
