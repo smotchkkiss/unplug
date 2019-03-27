@@ -107,8 +107,30 @@ if (!function_exists('Em4nl\Unplug\flush_cache_on_switch_theme')) {
 
 if (!function_exists('Em4nl\Unplug\hide_wp_sample_permalink')) {
     function hide_wp_sample_permalink() {
-        add_filter('get_sample_permalink_html', function() {
-            return '';
-        });
+        add_filter(
+            'get_sample_permalink_html',
+            function($sample_html) {
+                $matches = array();
+                $match = preg_match(
+                    '/<span id="editable-post-name">(.*?)<\/span>/',
+                    $sample_html,
+                    $matches
+                );
+                if (count($matches) < 2) {
+                    return '';
+                }
+                return preg_replace(
+                    array(
+                        '/Permalink/',
+                        '/<a href=".*?">.*?<\/a>/',
+                    ),
+                    array(
+                        'Slug',
+                        "<span id=\"editable-post-name\">{$matches[1]}</span>",
+                    ),
+                    $sample_html
+                );
+            }
+        );
     }
 }
