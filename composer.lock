@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "53358df90cc76a8fa94dde3db90a8237",
+    "content-hash": "5da03b6c5fb31615a2dc19598d335ae8",
     "packages": [
         {
             "name": "em4nl/ucache",
@@ -54,16 +54,16 @@
         },
         {
             "name": "em4nl/uresponse",
-            "version": "v0.0.2",
+            "version": "v0.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/em4nl/uresponse.git",
-                "reference": "1afd474e60734d72f6885a8491e7419dd0d81a13"
+                "reference": "4679f8cfe7f527dc255818a5d1d6242ff5953436"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/em4nl/uresponse/zipball/1afd474e60734d72f6885a8491e7419dd0d81a13",
-                "reference": "1afd474e60734d72f6885a8491e7419dd0d81a13",
+                "url": "https://api.github.com/repos/em4nl/uresponse/zipball/4679f8cfe7f527dc255818a5d1d6242ff5953436",
+                "reference": "4679f8cfe7f527dc255818a5d1d6242ff5953436",
                 "shasum": ""
             },
             "require": {
@@ -96,7 +96,7 @@
                 "http",
                 "response"
             ],
-            "time": "2019-03-11T12:22:14+00:00"
+            "time": "2019-03-28T15:56:38+00:00"
         },
         {
             "name": "em4nl/urouter",
