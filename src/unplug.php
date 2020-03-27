@@ -95,6 +95,12 @@ if (!function_exists('Em4nl\Unplug\flush_cache_on_save_post_or_settings')) {
 
         // flush cache when menu order is changed
         add_action('wp_ajax_update-menu-order', $after_save_post);
+
+        // flush cache after a post is moved to trash
+        add_action('trashed_post', $after_save_post);
+
+        // ... or from the trash.
+        add_action('untrashed_post', $after_save_post);
     }
 }
 
