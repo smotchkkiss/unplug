@@ -46,13 +46,13 @@ if (!function_exists('Em4nl\Unplug\get_page')) {
     }
 }
 
-// get_posts() [0]
-// get_posts('post') [1]
-// get_posts(function() {}) [1]
-// get_posts('post', function() {}) [2]
-// get_posts(5, 2) [2]
-// get_posts(5, 2, function() {}) [3]
-// get_posts('post', 5, 2, function() {}) [4]
+// get_posts() [0] -- returns all posts
+// get_posts('post') [1] - post_type
+// get_posts(function() {}) [1] - enhance_post_callback
+// get_posts('post', function() {}) [2] - post_type, enhance_post_callback
+// get_posts(5, 2) [2] - posts_per_page, page_number
+// get_posts(5, 2, function() {}) [3] - posts_per_page, page_number, enhance_post_callback
+// get_posts('post', 5, 2, function() {}) [4] - post_type, posts_per_page, page_number, enhance_post_callback
 if (!function_exists('Em4nl\Unplug\get_posts')) {
     function get_posts() {
         $num_args = func_num_args();
@@ -139,6 +139,16 @@ if (!function_exists('Em4nl\Unplug\get_posts')) {
     }
 }
 
+// get_terms() [0] -- returns the post tags
+// get_terms('post_tag') [1] - taxonomy
+// get_terms(['order' => 'DESC']) [1] - options
+// get_terms(function() {}) [1] - callback
+// get_terms('post_tag', ['order' => 'DESC']) [2] - taxonomy, options
+// get_terms('post_tag', function() {}) [2] - taxonomy, callback
+// get_terms('post_tag', ['order' => 'DESC'], function() {}) [3] - taxonomy, options, callback
+// actually get_terms would also work with only options and
+// callback, but in reverse order get_terms(callback, options).
+// but this is unintended and shouldn't be used
 if (!function_exists('Em4nl\Unplug\get_terms')) {
     function get_terms($taxonomy='post_tag', $options=NULL, $callback=NULL) {
         if (is_array($taxonomy)) {
