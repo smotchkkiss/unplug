@@ -32,6 +32,7 @@ if (!function_exists('Em4nl\Unplug\get')) {
 if (!function_exists('Em4nl\Unplug\post')) {
     function post($path, $callback) {
         _get_default_router()->post($path, function($context) use ($callback) {
+            define('UNPLUG_DO_CACHE', FALSE);
             _apply_request_middlewares($context);
             $response = $callback($context);
             if ($response) {
