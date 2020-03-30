@@ -26,7 +26,7 @@ if (!function_exists('Em4nl\Unplug\enhance_post')) {
  * WordPress' functions that also autoload custom fields
  */
 if (!function_exists('Em4nl\Unplug\get_post')) {
-    function get_post($type, $name=NULL, $cb=NULL) {
+    function get_post($type='post', $name=NULL, $cb=NULL) {
         $query = array(
             'post_type' => $type,
             'posts_per_page' => 1,
