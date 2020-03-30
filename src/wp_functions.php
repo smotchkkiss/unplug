@@ -22,7 +22,7 @@ if (!function_exists('Em4nl\Unplug\enhance_post')) {
 
 
 /**
- * These 4 are meant as a bit more flexible replacements for
+ * These 6 are meant as a bit more flexible replacements for
  * WordPress' functions that also autoload custom fields
  */
 if (!function_exists('Em4nl\Unplug\get_post')) {
@@ -39,6 +39,44 @@ if (!function_exists('Em4nl\Unplug\get_post')) {
         }
     }
 }
+
+// experimental get_next_post and get_previous_post functions that
+// accept a post as their first parameter
+if (!function_exists('Em4nl\Unplug\get_next_post')) {
+    function get_next_post(
+        $_post,
+        $in_same_term=false,
+        $excluded_terms='',
+        $taxonomy='category'
+    ) {
+        global $post;
+        $global_post = $post;
+        $post = $_post;
+        $next_post = \get_next_post($in_same_term, $excluded_terms, $taxonomy);
+        $post = $global_post;
+        return $next_post;
+    }
+}
+
+if (!function_exists('Em4nl\Unplug\get_previous_post')) {
+    function get_previous_post(
+        $_post,
+        $in_same_term=false,
+        $excluded_terms='',
+        $taxonomy='category'
+    ) {
+        global $post;
+        $global_post = $post;
+        $post = $_post;
+        $previous_post = \get_previous_post(
+            $in_same_term,
+            $excluded_terms,
+            $taxonomy
+        );
+        $post = $global_post;
+        return $previous_post;
+    }
+        }
 
 if (!function_exists('Em4nl\Unplug\get_page')) {
     function get_page($name, $cb=NULL) {
